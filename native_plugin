@@ -21,12 +21,12 @@ import psutil
 import json
 import time
 import signal
-from fog05sdk.interfaces.States import State
-from fog05sdk.interfaces.RuntimePluginFDU import *
-from fog05sdk import Yaks_Connector
+from fog05_sdk.interfaces.States import State
+from fog05_sdk.interfaces.RuntimePluginFDU import *
+from fog05_sdk import Yaks_Connector
 from NativeFDU import NativeFDU
 from jinja2 import Environment
-from fog05sdk.DLogger import DLogger
+from fog05_sdk.DLogger import DLogger
 from mvar import MVar
 
 

@@ -14,8 +14,8 @@
 
 import sys
 import os
-from fog05sdk.interfaces.States import State
-from fog05sdk.interfaces.InfraFDU import InfraFDU
+from fog05_sdk.interfaces.States import State
+from fog05_sdk.interfaces.InfraFDU import InfraFDU
 
 class NativeFDU(InfraFDU):
     def __init__(self, data):
