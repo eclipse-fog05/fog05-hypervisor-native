@@ -6,7 +6,7 @@ After=network.target
 [Service]
 Type=simple
 PIDFile=/var/fos/native.pid
-ExecStart = /etc/fos/plugins/native/native_plugin /etc/fos/plugins/native/native_plugin.json
+ExecStart = /etc/fos/plugins/plugin-fdu-native/native_plugin /etc/fos/plugins/plugin-fdu-native/native_plugin.json
 KillMode=process
 Restart=on-failure
 User=fos
