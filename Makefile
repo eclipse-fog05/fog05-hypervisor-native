@@ -2,6 +2,7 @@
 
 
 NATIVE_PLUGIN_DIR = /etc/fos/plugins/plugin-fdu-native
+UUID = $(shell ./to_uuid.sh)
 all:
 	echo "Nothing to do..."
 
