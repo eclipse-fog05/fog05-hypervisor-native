@@ -30,7 +30,7 @@ else
 	sudo cp ./NativeFDU.py $(NATIVE_PLUGIN_DIR)
 	sudo cp ./README.md $(NATIVE_PLUGIN_DIR)
 endif
-	sudo cp $(NATIVE_PLUGIN_DIR)/fos_native.service $(SYSTEMD_DIR)
+	sudo cp ./fos_native.service $(SYSTEMD_DIR)
 	sudo sh -c "echo $(UUID) | xargs -i  jq  '.configuration.nodeid = \"{}\"' $(PLUGIN_CONF) > /tmp/native_plugin.tmp && mv /tmp/native_plugin.tmp $(PLUGIN_CONF)"
 
 uninstall:
