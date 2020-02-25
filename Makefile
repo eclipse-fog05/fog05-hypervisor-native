@@ -22,7 +22,6 @@ ifeq "$(wildcard $(NATIVE_PLUGIN_DIR))" ""
 	sudo cp ./native_plugin $(NATIVE_PLUGIN_DIR)
 	sudo cp ./NativeFDU.py $(NATIVE_PLUGIN_DIR)
 	sudo cp ./README.md $(NATIVE_PLUGIN_DIR)
-	sudo cp /etc/fos/plugins/plugin-fdu-native/fos_native.service $(SYSTEMD_DIR)
 	sudo cp ./native_plugin.json $(PLUGIN_CONF)
 else
 	sudo cp -r ./templates $(NATIVE_PLUGIN_DIR)
@@ -30,9 +29,8 @@ else
 	sudo cp ./native_plugin $(NATIVE_PLUGIN_DIR)
 	sudo cp ./NativeFDU.py $(NATIVE_PLUGIN_DIR)
 	sudo cp ./README.md $(NATIVE_PLUGIN_DIR)
-	sudo cp /etc/fos/plugins/plugin-fdu-native/fos_native.service $(SYSTEMD_DIR)
 endif
-	sudo cp /etc/fos/plugins/plugin-fdu-native/fos_lxd.service /lib/systemd/system/
+	sudo cp $(NATIVE_PLUGIN_DIR)/fos_native.service $(SYSTEMD_DIR)
 	sudo sh -c "echo $(UUID) | xargs -i  jq  '.configuration.nodeid = \"{}\"' $(PLUGIN_CONF) > /tmp/native_plugin.tmp && mv /tmp/native_plugin.tmp $(PLUGIN_CONF)"
 
 uninstall:
