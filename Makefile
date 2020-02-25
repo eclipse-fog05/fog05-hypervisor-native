@@ -16,6 +16,7 @@ all:
 install:
 	sudo pip3 install jinja2 psutil
 ifeq "$(wildcard $(NATIVE_PLUGIN_DIR))" ""
+	mkdir -p $(NATIVE_PLUGIN_DIR)
 	sudo cp -r ./templates $(NATIVE_PLUGIN_DIR)
 	sudo cp ./__init__.py $(NATIVE_PLUGIN_DIR)
 	sudo cp ./native_plugin $(NATIVE_PLUGIN_DIR)
