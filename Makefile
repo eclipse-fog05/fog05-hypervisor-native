@@ -7,6 +7,7 @@ SYSTEMD_DIR = /lib/systemd/system/
 BIN_DIR = /usr/bin
 UUID = $(shell ./to_uuid.sh)
 
+
 clean:
 	rm -rf utils/containerize
 
@@ -34,7 +35,7 @@ else
 	sudo cp ./README.md $(NATIVE_PLUGIN_DIR)
 endif
 	sudo chmod +x $(NATIVE_PLUGIN_DIR)/utils/containerize
-	sudo ln -ls $(NATIVE_PLUGIN_DIR)/utils/containerize /usr/local/bin/fos_containerize
+	sudo ln -ls $(NATIVE_PLUGIN_DIR)/utils/containerize $(BIN_DIR)/fos_containerize
 	sudo cp ./fos_native.service $(SYSTEMD_DIR)
 	sudo sh -c "echo $(UUID) | xargs -i  jq  '.configuration.nodeid = \"{}\"' $(PLUGIN_CONF) > /tmp/native_plugin.tmp && mv /tmp/native_plugin.tmp $(PLUGIN_CONF)"
 
