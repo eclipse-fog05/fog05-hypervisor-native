@@ -33,6 +33,7 @@ class NativeFDU(InfraFDU):
         self.pid = -1
         self.process = None
         self.source = ''
+        self.namespace = None
         # self.outfile = ''
 
     def set_cmd(self, command):

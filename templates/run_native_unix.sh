@@ -17,4 +17,4 @@
 
 
 
-cd {{ path }} && sh -c "{{ command }}" & echo $! > {{outfile}}.pid
+cd {{ path }} && fos_containerize {{ namespace }} {{ command }} & echo $! > {{outfile}}.pid

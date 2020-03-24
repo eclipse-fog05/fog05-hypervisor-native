@@ -206,6 +206,10 @@ class Native(RuntimePluginFDU):
                     unzip_cmd = ''
                 self.os.execute_command(unzip_cmd, blocking=True, external=True)
 
+            netns = self.nm.create_network_namespace()
+
+            fdu.namespace = netns
+
             fdu.on_configured('')
 
             self.logger.info('configure_fdu()', ' Native Plugin - FDU is {}'.format(fdu))
@@ -231,6 +235,8 @@ class Native(RuntimePluginFDU):
             native_dir = os.path.join(self.BASE_DIR, self.STORE_DIR, fdu_uuid, fdu.name)
             self.os.remove_dir(native_dir)
 
+            self.nm.delete_network_namespace(fdu.namespace)
+
             fdu.on_clean()
             self.current_fdus.update({instance_uuid: fdu})
             self.update_fdu_status(fdu_uuid, instance_uuid, 'DEFINE')
@@ -255,7 +261,7 @@ class Native(RuntimePluginFDU):
                 native_dir = os.path.join(self.BASE_DIR, self.STORE_DIR, fdu_uuid, fdu.name)
                 source_dir = os.path.join(self.BASE_DIR, self.STORE_DIR, fdu_uuid, fdu.name)
                 pid_file = os.path.join(self.BASE_DIR, self.STORE_DIR, fdu_uuid, fdu.name, instance_uuid)
-                run_script = self.__generate_run_script(fdu.cmd, fdu.args, source_dir, pid_file)
+                run_script = self.__generate_run_script(fdu.cmd, fdu.args, source_dir, pid_file, fdu.namespace)
                 if self.operating_system.lower() == 'linux':
                     self.os.store_file(run_script, native_dir, '{}_run.sh'.format(instance_uuid))
                     chmod_cmd = 'chmod +x {}'.format(os.path.join(native_dir, '{}_run.sh'.format(instance_uuid)))
@@ -286,7 +292,7 @@ class Native(RuntimePluginFDU):
                         template_xml = self.os.read_file(os.path.join(self.DIR, 'templates', 'run_native_unix2.sh'))
                         na_script = Environment().from_string(template_xml)
                         cmd = '{} {}'.format(fdu.cmd, ' '.join(fdu.args))
-                        na_script = na_script.render(command=cmd, outfile=pid_file, path=native_dir)
+                        na_script = na_script.render(command=cmd, outfile=pid_file, path=native_dir, namespace=fdu.namespace)
                         self.logger.info('run_fdu()', '[ INFO ] Lenght of runscript is {}'.format(len(na_script)))
                         self.os.store_file(na_script, native_dir, f_name)
                         chmod_cmd = 'chmod +x {}'.format(os.path.join(native_dir, f_name))
@@ -424,7 +430,7 @@ class Native(RuntimePluginFDU):
         self.logger.info('__execute_command()', 'PID = {}'.format(p.pid))
         return p
 
-    def __generate_run_script(self, cmd, args, directory, outfile):
+    def __generate_run_script(self, cmd, args, directory, outfile, ns=None):
         if self.operating_system.lower() == 'windows':
             if len(args) == 0:
                 self.logger.info('__generate_run_script()', ' Native Plugin - Generating run script for Windows')
@@ -454,7 +460,7 @@ class Native(RuntimePluginFDU):
                 p = self.BASE_DIR
             if len(args)>0:
                 cmd = cmd + ' {}'.format(' '.join(args))
-            na_script = na_script.render(path=p,command=cmd, outfile=outfile)
+            na_script = na_script.render(path=p,command=cmd, outfile=outfile, namespace=ns)
         return na_script
 
 
