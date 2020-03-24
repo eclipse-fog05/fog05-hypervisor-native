@@ -110,7 +110,7 @@ class Native(RuntimePluginFDU):
         instance_id = fdu.get_uuid()
 
         if instance_id in self.current_fdus:
-            self.logger.error('define_fdu()', '[ ERRO ] LXD Plugin - Instance with ID {} already defined!!'.format(instance_id))
+            self.logger.error('define_fdu()', '[ ERRO ] Native Plugin - Instance with ID {} already defined!!'.format(instance_id))
             self.write_fdu_error(fdu_uuid, instance_id, 0, 'Instance with this ID {} already exists!'.format(instance_id))
 
 

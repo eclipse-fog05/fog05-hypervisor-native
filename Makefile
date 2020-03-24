@@ -7,13 +7,13 @@ SYSTEMD_DIR = /lib/systemd/system/
 BIN_DIR = /usr/bin
 UUID = $(shell ./to_uuid.sh)
 
+all:
+	mkdir -p utils
+	gcc -o utils/containerize containerize.c
 
 clean:
 	rm -rf utils/containerize
 
-all:
-	mkdir -p utils
-	gcc -o utils/containerize containerize.c
 
 install:
 	sudo pip3 install jinja2 psutil
