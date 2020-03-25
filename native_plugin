@@ -385,7 +385,8 @@ class Native(RuntimePluginFDU):
                 pid = fdu.pid
                 self.logger.info('stop_fdu()', 'FDU source is none')
                 self.logger.info('stop_fdu()', 'Native Plugin - PID {}'.format(pid))
-                self.os.send_sig_int(pid)
+                self.os.execute_command('sudo pkill -2 -P {}'.format(pid),blocking=True, external=False)
+                # self.os.send_sig_int(pid)
                 f_name = '{}.pid'.format(instance_uuid)
                 f_path = os.path.join(self.BASE_DIR, self.STORE_DIR)
                 pid_file = os.path.join(f_path, f_name)
@@ -393,23 +394,23 @@ class Native(RuntimePluginFDU):
                 if self.os.file_exists(pid_file):
                     pid = int(self.os.read_file(pid_file))
                     self.logger.info('stop_fdu()', 'Native Plugin - PID {}'.format(pid))
-                    self.os.execute_command('sudo pkill -9 -P {}'.format(pid),blocking=True, external=False)
+                    self.os.execute_command('sudo pkill -2 -P {}'.format(pid),blocking=True, external=False)
                     if self.os.check_if_pid_exists(pid):
-                        self.os.send_sig_int(pid)
+                        self.os.execute_command('sudo pkill -2 -P {}'.format(pid),blocking=True, external=False)
                         time.sleep(3)
                     if  self.os.check_if_pid_exists(pid):
-                        self.os.send_sig_kill(pid)
+                        self.os.execute_command('sudo pkill -9 -P {}'.format(pid),blocking=True, external=False)
                 pid_file = os.path.join(self.BASE_DIR, self.STORE_DIR, fdu_uuid, fdu.name, '{}.pid'.format(instance_uuid))
                 self.logger.info('stop_fdu()', 'Check if PID file exists {}'.format(pid_file))
                 if self.os.file_exists(pid_file):
                     pid = int(self.os.read_file(pid_file))
                     self.logger.info('stop_fdu()', 'Native Plugin - PID {}'.format(pid))
-                    self.os.execute_command('sudo pkill -9 -P {}'.format(pid), blocking=True, external=False)
+                    self.os.execute_command('sudo pkill -2 -P {}'.format(pid), blocking=True, external=False)
                     if self.os.check_if_pid_exists(pid):
-                        self.os.send_sig_int(pid)
+                        self.os.execute_command('sudo pkill -2 -P {}'.format(pid), blocking=True, external=False)
                         time.sleep(3)
                     if self.os.check_if_pid_exists(pid):
-                        self.os.send_sig_kill(pid)
+                        self.os.execute_command('sudo pkill -9 -P {}'.format(pid), blocking=True, external=False)
             else:
 
                 self.logger.info('stop_fdu()', 'Instance source is not none')

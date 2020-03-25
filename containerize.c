@@ -104,10 +104,10 @@ int main(int argc, char* argv[]){
                         */
 
                         //mounting proc
-                        if(mount("none","/proc","proc", MS_NOSUID|MS_NOEXEC|MS_NODEV, NULL) != 0){
-                                perror("Cannot mount proc");
-                                exit(-1);
-                        }
+                        // if(mount("none","/proc","proc", MS_NOSUID|MS_NOEXEC|MS_NODEV, NULL) != 0){
+                        //         perror("Cannot mount proc");
+                        //         exit(-1);
+                        // }
 
                         /*
                         //mounting sys
