@@ -30,29 +30,31 @@ int main(int argc, char* argv[]){
 
         int cmd_len;
         int netns_len;
-        //int rootfs_len;
+        int upid_len;
 
         char* cmd;
         char* net_ns;
-        //char* rootfs;
+        char* upid_file;
 
         int net_fd;
+        int upid;
+        int upid_fd;
 
 
-        if (argc >=3) {
+        if (argc >=4) {
 
                 cmd_len = strlen(argv[2]);
                 netns_len = strlen(argv[1]);
-                //rootfs_len = strlen(argv[1]);
+                upid_len = strlen(argv[3]);
 
                 cmd = (char*) calloc(cmd_len,sizeof(char));
                 net_ns = (char*) calloc(netns_len,sizeof(char));
-                //rootfs = (char*) calloc(rootfs_len,sizeof(char));
+                upid_file = (char*) calloc(upid_len,sizeof(char));
 
 
                 strncpy(cmd,argv[2], cmd_len);
                 strncpy(net_ns,argv[1], netns_len);
-                //strncpy(rootfs,argv[1], rootfs_len);
+                strncpy(upid_file,argv[3], upid_len);
 
                 // flags = CLONE_NEWPID | CLONE_NEWNS | CLONE_NEWIPC | CLONE_SYSVSEM | CLONE_NEWUTS | CLONE_NEWUSER;
                 flags = CLONE_NEWPID | CLONE_NEWNS | CLONE_NEWIPC | CLONE_SYSVSEM | CLONE_NEWUTS;
@@ -69,6 +71,18 @@ int main(int argc, char* argv[]){
                 pid = fork();
                 if (pid==0){
                         //this is the child, mount and execvp here
+                        char buf[255];
+
+                        // storing the child PID
+                        upid = getpid();
+                        upid_fd = open(upid_file, O_WRONLY | O_CREAT);
+                        if (upid_fd == -1) {
+                                perror("PID file cannot be opened");
+                                exit(-1);
+                        }
+                        sprintf(buf, "%d", upid);
+                        write(upid_fd, buf, strlen(buf));
+                        close(upid_fd);
 
                         // printf("Mapping root user\n");
                         // //mapping root user
@@ -123,7 +137,7 @@ int main(int argc, char* argv[]){
 
                         //executing command
 
-                        execvp(cmd,&argv[2]);
+                        execvp(cmd,&argv[3]);
 
 
                 }else{
