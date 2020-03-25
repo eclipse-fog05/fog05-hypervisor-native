@@ -14,4 +14,4 @@
 # Contributors: Gabriele Baldoni, ADLINK Technology Inc. - Base plugins set
 
 cd {{ path }}
-fos_containerize /var/run/netns/{{ namespace }} {{outfile}}_child.pid {{ command }} & echo $! > {{outfile}}.pid
+sudo fos_containerize /var/run/netns/{{ namespace }} {{outfile}}_child.pid {{ command }} & echo $! > {{outfile}}.pid
