@@ -248,7 +248,7 @@ class Native(RuntimePluginFDU):
                         self.logger.info('configure_fdu()','Assigned IP to interface {}'.format(res))
 
                         # adding to the list of interfaces
-                        fdu.virtual_interfaces.append({**intf_info.get('internal'), **intf_info.get('external')})
+                        fdu.virtual_interfaces.append({'internal':intf_info.get('internal'), 'external':intf_info.get('external')})
                 else:
                     self.logger.error('configure_fdu()', 'Native FDU Plugin - Only bridged interfaces are supported at the moment')
                     # mac = intf.get('mac_address', self.__generate_random_mac())
@@ -285,6 +285,10 @@ class Native(RuntimePluginFDU):
             self.os.remove_file(fdu.outfile)
             native_dir = os.path.join(self.BASE_DIR, self.STORE_DIR, fdu_uuid, fdu.name)
             self.os.remove_dir(native_dir)
+
+            for i in fdu.virtual_interfaces:
+                self.nm.detach_interface_from_bridge(i.get('external').get('name'))
+                self.nm.delete_virtual_interface_from_namespace(i.get('internal').get('name'), fdu.namespace)
 
             self.nm.delete_network_namespace(fdu.namespace)
 
