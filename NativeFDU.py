@@ -34,6 +34,7 @@ class NativeFDU(InfraFDU):
         self.process = None
         self.source = ''
         self.namespace = None
+        self.virtual_interfaces = []
         # self.outfile = ''
 
     def set_cmd(self, command):
