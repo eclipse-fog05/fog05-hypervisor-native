@@ -43,18 +43,18 @@ int main(int argc, char* argv[]){
 
         if (argc >=4) {
 
-                cmd_len = strlen(argv[2]);
+                cmd_len = strlen(argv[3]);
                 netns_len = strlen(argv[1]);
-                upid_len = strlen(argv[3]);
+                upid_len = strlen(argv[2]);
 
                 cmd = (char*) calloc(cmd_len,sizeof(char));
                 net_ns = (char*) calloc(netns_len,sizeof(char));
                 upid_file = (char*) calloc(upid_len,sizeof(char));
 
 
-                strncpy(cmd,argv[2], cmd_len);
+                strncpy(cmd,argv[3], cmd_len);
                 strncpy(net_ns,argv[1], netns_len);
-                strncpy(upid_file,argv[3], upid_len);
+                strncpy(upid_file,argv[2], upid_len);
 
                 // flags = CLONE_NEWPID | CLONE_NEWNS | CLONE_NEWIPC | CLONE_SYSVSEM | CLONE_NEWUTS | CLONE_NEWUSER;
                 flags = CLONE_NEWPID | CLONE_NEWNS | CLONE_NEWIPC | CLONE_SYSVSEM | CLONE_NEWUTS;
