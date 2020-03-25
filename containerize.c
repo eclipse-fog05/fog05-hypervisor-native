@@ -30,31 +30,30 @@ int main(int argc, char* argv[]){
 
         int cmd_len;
         int netns_len;
-        int upid_len;
+        int cpid_len;
 
         char* cmd;
         char* net_ns;
-        char* upid_file;
+        char* cpid_file;
 
         int net_fd;
-        int upid;
-        int upid_fd;
+        int cpid_fd;
 
 
         if (argc >=4) {
 
                 cmd_len = strlen(argv[3]);
                 netns_len = strlen(argv[1]);
-                upid_len = strlen(argv[2]);
+                cpid_len = strlen(argv[2]);
 
                 cmd = (char*) calloc(cmd_len,sizeof(char));
                 net_ns = (char*) calloc(netns_len,sizeof(char));
-                upid_file = (char*) calloc(upid_len,sizeof(char));
+                cpid_file = (char*) calloc(cpid_len,sizeof(char));
 
 
                 strncpy(cmd,argv[3], cmd_len);
                 strncpy(net_ns,argv[1], netns_len);
-                strncpy(upid_file,argv[2], upid_len);
+                strncpy(cpid_file,argv[2], cpid_len);
 
                 // flags = CLONE_NEWPID | CLONE_NEWNS | CLONE_NEWIPC | CLONE_SYSVSEM | CLONE_NEWUTS | CLONE_NEWUSER;
                 flags = CLONE_NEWPID | CLONE_NEWNS | CLONE_NEWIPC | CLONE_SYSVSEM | CLONE_NEWUTS;
@@ -71,18 +70,6 @@ int main(int argc, char* argv[]){
                 pid = fork();
                 if (pid==0){
                         //this is the child, mount and execvp here
-                        char buf[255];
-
-                        // storing the child PID
-                        upid = getpid();
-                        upid_fd = open(upid_file, O_WRONLY | O_CREAT);
-                        if (upid_fd == -1) {
-                                perror("PID file cannot be opened");
-                                exit(-1);
-                        }
-                        sprintf(buf, "%d", upid);
-                        write(upid_fd, buf, strlen(buf));
-                        close(upid_fd);
 
                         // printf("Mapping root user\n");
                         // //mapping root user
@@ -142,6 +129,19 @@ int main(int argc, char* argv[]){
 
                 }else{
                         cpid = pid;
+
+                        char buf[255];
+
+                        // storing the child PID
+                        cpid_fd = open(cpid_file, O_WRONLY | O_CREAT);
+                        if (cpid_fd == -1) {
+                                perror("PID file cannot be opened");
+                                exit(-1);
+                        }
+                        sprintf(buf, "%d", cpid);
+                        write(cpid_fd, buf, strlen(buf));
+                        close(cpid_fd);
+
                         signal(SIGINT, sig_handler);
                         //this is the parent, wait the child here
                         //free(rootfs);
