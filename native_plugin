@@ -210,7 +210,10 @@ class Native(RuntimePluginFDU):
 
 
             for cp in fdu.get_connection_points():
-                    cp_record = self.nm.create_port_from_descriptor(cp)
+                    cp_record = self.nm.create_connection_point(cp)
+                    if cp_record.get('vld_ref') is not None:
+                        vld = cp_record.get('vld_ref')
+                        self.nm.connect_cp_to_vnetwork(cp_record.get('uuid'), vld)
                     fdu.instance_cps.append(cp_record)
 
             netns = self.nm.create_network_namespace()
@@ -269,6 +272,7 @@ class Native(RuntimePluginFDU):
                     mac = intf.get('mac_address', self.__generate_random_mac())
                     intf.update({'mac_address': mac})
                     intf_info = self.nm.create_virtual_interface_in_namespace(intf_name, fdu.namespace)
+                    self.logger.info('configure_fdu()','Created interface {}'.format(intf_info))
                     res = self.nm.assign_mac_address_to_interface_in_namespace(intf_name, fdu.namespace, mac)
 
                     if intf.get('cp_id') is not None:
@@ -328,7 +332,7 @@ class Native(RuntimePluginFDU):
                 self.nm.delete_virtual_interface_from_namespace(i.get('internal').get('name'), fdu.namespace)
 
             for cp in fdu.instance_cps:
-                self.nm.destroy_port_agent(cp.get('uuid'))
+                self.nm.remove_connection_point(cp.get('uuid'))
 
             self.nm.delete_network_namespace(fdu.namespace)
 
