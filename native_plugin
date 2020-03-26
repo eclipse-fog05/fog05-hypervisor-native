@@ -208,6 +208,11 @@ class Native(RuntimePluginFDU):
                     unzip_cmd = ''
                 self.os.execute_command(unzip_cmd, blocking=True, external=True)
 
+
+            for cp in fdu.get_connection_points():
+                    cp_record = self.nm.create_port_from_descriptor(cp)
+                    fdu.instance_cps.append(cp_record)
+
             netns = self.nm.create_network_namespace()
             fdu.namespace = netns
             # {'name': 'eth0', 'is_mgmt': False, 'if_type': 'INTERNAL', 'mac_address': 'be:ef:be:ef:00:01', 'virtual_interface': {'intf_type': 'BRIDGED', 'vpci': 'lxdbr0', 'bandwidth': 10}, 'vintf_name': 'eth0', 'status': 'CREATE', 'phy_face': 'lxdbr0'}
@@ -260,12 +265,26 @@ class Native(RuntimePluginFDU):
                         # adding to the list of interfaces
                         fdu.virtual_interfaces.append({'internal':intf_info.get('internal'), 'external':intf_info.get('external')})
                 else:
-                    self.logger.error('configure_fdu()', 'Native FDU Plugin - Only bridged interfaces are supported at the moment - This creates the virtual interface but does not connect it to the actual connection point')
+                    self.logger.error('configure_fdu()', 'Native FDU Plugin creating interface attached to connection point')
                     mac = intf.get('mac_address', self.__generate_random_mac())
                     intf.update({'mac_address': mac})
                     intf_info = self.nm.create_virtual_interface_in_namespace(intf_name, fdu.namespace)
                     res = self.nm.assign_mac_address_to_interface_in_namespace(intf_name, fdu.namespace, mac)
-                    self.logger.info('configure_fdu()','Assigned MAC to interface {}'.format(res))
+
+                    if intf.get('cp_id') is not None:
+                        cp_id = intf.get('cp_id')
+                        cp = [x for x in fdu.instance_cps if x.get('cp_id') == cp_id]
+                        if len(cp) > 0:
+                            cp = cp[0]
+                            res = self.nm.attach_interface_to_bridge(intf_info.get('external').get('name'),cp.get('br_name'))
+                            self.logger.info('configure_fdu()','Attached to bridge interface {}'.format(res))
+                            self.nm.assign_address_to_interface_in_namespace(intf_name, fdu.namespace)
+                            self.logger.info('configure_fdu()','Assigned IP to interface {}'.format(res))
+                        else:
+                            self.logger.error('configure_fdu','Native FDU Plugin unable to find connection point {} for interface {}'.format(cp_id, intf_name))
+                    else:
+                        self.logger.error('configure_fdu','Native FDU Plugin interface {} is not connected to anything'.format(intf_name))
+
 
                     fdu.virtual_interfaces.append({'internal':intf_info.get('internal'), 'external':intf_info.get('external')})
 
@@ -307,6 +326,9 @@ class Native(RuntimePluginFDU):
                 if i.get('external') is not None:
                     self.nm.detach_interface_from_bridge(i.get('external').get('name'))
                 self.nm.delete_virtual_interface_from_namespace(i.get('internal').get('name'), fdu.namespace)
+
+            for cp in fdu.instance_cps:
+                self.nm.destroy_port_agent(cp.get('uuid'))
 
             self.nm.delete_network_namespace(fdu.namespace)
 
