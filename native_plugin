@@ -218,14 +218,15 @@ class Native(RuntimePluginFDU):
 
             netns = self.nm.create_network_namespace()
             fdu.namespace = netns
-            # {'name': 'eth0', 'is_mgmt': False, 'if_type': 'INTERNAL', 'mac_address': 'be:ef:be:ef:00:01', 'virtual_interface': {'intf_type': 'BRIDGED', 'vpci': 'lxdbr0', 'bandwidth': 10}, 'vintf_name': 'eth0', 'status': 'CREATE', 'phy_face': 'lxdbr0'}
+
+
             for intf in fdu.get_interfaces():
                 intf_name = intf.get('vintf_name')
                 self.logger.info('configure_fdu()','Interface Info {}'.format(intf))
 
                 if intf.get('virtual_interface').get('intf_type').upper() in ['PHYSICAL','BRIDGED']:
-                    # mac = intf.get('mac_address', self.__generate_random_mac())
-                    # intf.update({'mac_address': mac})
+
+
                     real_intf_name = intf.get('phy_face', None)
                     if real_intf_name is None:
                         raise ValueError("phy_face cannot be none")
@@ -289,15 +290,8 @@ class Native(RuntimePluginFDU):
                     else:
                         self.logger.error('configure_fdu','Native FDU Plugin interface {} is not connected to anything'.format(intf_name))
 
-
                     fdu.virtual_interfaces.append({'internal':intf_info.get('internal'), 'external':intf_info.get('external')})
 
-
-                    # intf_id = 'lxd-{}-{}'.format(fdu.get_short_id(), i)
-                    # intf_data = self.nm.create_virtual_interface(intf_id, intf)
-                    # self.logger.info('__generate_custom_profile_userdata_configuration()','LXD Plugin - Interface info {}'.format(intf_data))
-                    # dev_name = intf_data.get('int_name')
-                    # nw_v = json.loads(str(template_vintf % (intf_name, dev_name)))
 
 
 
