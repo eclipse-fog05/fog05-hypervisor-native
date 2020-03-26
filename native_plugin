@@ -222,15 +222,25 @@ class Native(RuntimePluginFDU):
                     if real_intf_name is None:
                         raise ValueError("phy_face cannot be none")
                     if self.os.get_intf_type(real_intf_name) in ['ethernet']:
-                        self.logger.error('configure_fdu()', 'Native FDU Plugin - Only bridged interfaces are supported at the moment')
-                        # mac = intf.get('mac_address', self.__generate_random_mac())
-                        # intf.update({'mac_address': mac})
-                        # nw_v = json.loads(str(template_value_macvlan_mac % (intf_name, real_intf_name, mac)))
-                        # self.os.set_interface_unaviable(real_intf_name)
+                        self.logger.error('configure_fdu()', 'Native FDU Plugin - Creating macvlan interface')
+                        mac = intf.get('mac_address', self.__generate_random_mac())
+                        intf.update({'mac_address': mac})
+
+                        macvlan_temp_name = self.nm.create_macvlan_interface(real_intf_name)
+                        self.nm.move_interface_in_namespace(macvlan_temp_name, fdu.namespace)
+                        self.nm.assign_mac_address_to_interface_in_namespace(macvlan_temp_name, fdu.namespace, mac)
+                        self.nm.rename_virtual_interface_in_namespace(macvlan_temp_name, intf_name, fdu.namespace)
+                        intf_info = self.nm.assign_address_to_interface_in_namespace(intf_name, fdu.namespace)
+
+                        fdu.virtual_interfaces.append({'internal':intf_info.get('internal'), 'external':None})
+
                     elif self.os.get_intf_type(real_intf_name) in ['wireless']:
-                        self.logger.error('configure_fdu()', 'Native FDU Plugin - Only bridged interfaces are supported at the moment')
-                        # nw_v = json.loads(str(template_value_phy % (intf_name, real_intf_name)))
-                        # self.os.set_interface_unaviable(real_intf_name)
+                        self.logger.error('configure_fdu()', 'Native FDU Plugin - Creating moving wireless interface to namespace')
+                        intf_info = self.nm.move_interface_in_namespace(real_intf_name, fdu.namespace)
+                        self.nm.rename_virtual_interface_in_namespace(real_intf_name, intf_name, fdu.namespace)
+                        intf_info.update({"name":intf_name})
+                        fdu.virtual_interfaces.append({'internal':intf_info, 'external':None})
+
                     else:
                         mac = intf.get('mac_address', self.__generate_random_mac())
                         intf.update({'mac_address': mac})
@@ -250,9 +260,16 @@ class Native(RuntimePluginFDU):
                         # adding to the list of interfaces
                         fdu.virtual_interfaces.append({'internal':intf_info.get('internal'), 'external':intf_info.get('external')})
                 else:
-                    self.logger.error('configure_fdu()', 'Native FDU Plugin - Only bridged interfaces are supported at the moment')
-                    # mac = intf.get('mac_address', self.__generate_random_mac())
-                    # intf.update({'mac_address': mac})
+                    self.logger.error('configure_fdu()', 'Native FDU Plugin - Only bridged interfaces are supported at the moment - This creates the virtual interface but does not connect it to the actual connection point')
+                    mac = intf.get('mac_address', self.__generate_random_mac())
+                    intf.update({'mac_address': mac})
+                    intf_info = self.nm.create_virtual_interface_in_namespace(intf_name, fdu.namespace)
+                    res = self.nm.assign_mac_address_to_interface_in_namespace(intf_name, fdu.namespace, mac)
+                    self.logger.info('configure_fdu()','Assigned MAC to interface {}'.format(res))
+
+                    fdu.virtual_interfaces.append({'internal':intf_info.get('internal'), 'external':intf_info.get('external')})
+
+
                     # intf_id = 'lxd-{}-{}'.format(fdu.get_short_id(), i)
                     # intf_data = self.nm.create_virtual_interface(intf_id, intf)
                     # self.logger.info('__generate_custom_profile_userdata_configuration()','LXD Plugin - Interface info {}'.format(intf_data))
@@ -287,7 +304,8 @@ class Native(RuntimePluginFDU):
             self.os.remove_dir(native_dir)
 
             for i in fdu.virtual_interfaces:
-                self.nm.detach_interface_from_bridge(i.get('external').get('name'))
+                if i.get('external') is not None:
+                    self.nm.detach_interface_from_bridge(i.get('external').get('name'))
                 self.nm.delete_virtual_interface_from_namespace(i.get('internal').get('name'), fdu.namespace)
 
             self.nm.delete_network_namespace(fdu.namespace)
