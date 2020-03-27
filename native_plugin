@@ -21,6 +21,8 @@ import psutil
 import json
 import time
 import signal
+import traceback
+import random
 from fog05_sdk.interfaces.States import State
 from fog05_sdk.interfaces.RuntimePluginFDU import *
 from fog05_sdk import Yaks_Connector
@@ -110,7 +112,7 @@ class Native(RuntimePluginFDU):
         instance_id = fdu.get_uuid()
 
         if instance_id in self.current_fdus:
-            self.logger.error('define_fdu()', '[ ERRO ] LXD Plugin - Instance with ID {} already defined!!'.format(instance_id))
+            self.logger.error('define_fdu()', '[ ERRO ] Native Plugin - Instance with ID {} already defined!!'.format(instance_id))
             self.write_fdu_error(fdu_uuid, instance_id, 0, 'Instance with this ID {} already exists!'.format(instance_id))
 
 
@@ -206,6 +208,93 @@ class Native(RuntimePluginFDU):
                     unzip_cmd = ''
                 self.os.execute_command(unzip_cmd, blocking=True, external=True)
 
+
+            for cp in fdu.get_connection_points():
+                    cp_record = self.nm.create_connection_point(cp)
+                    if cp_record.get('vld_ref') is not None:
+                        vld = cp_record.get('vld_ref')
+                        self.nm.connect_cp_to_vnetwork(cp_record.get('uuid'), vld)
+                    fdu.instance_cps.append(cp_record)
+
+            netns = self.nm.create_network_namespace()
+            fdu.namespace = netns
+
+
+            for intf in fdu.get_interfaces():
+                intf_name = intf.get('vintf_name')
+                self.logger.info('configure_fdu()','Interface Info {}'.format(intf))
+
+                if intf.get('virtual_interface').get('intf_type').upper() in ['PHYSICAL','BRIDGED']:
+
+
+                    real_intf_name = intf.get('phy_face', None)
+                    if real_intf_name is None:
+                        raise ValueError("phy_face cannot be none")
+                    if self.os.get_intf_type(real_intf_name) in ['ethernet']:
+                        self.logger.error('configure_fdu()', 'Native FDU Plugin - Creating macvlan interface')
+                        mac = intf.get('mac_address', self.__generate_random_mac())
+                        intf.update({'mac_address': mac})
+
+                        macvlan_temp_name = self.nm.create_macvlan_interface(real_intf_name)
+                        self.nm.move_interface_in_namespace(macvlan_temp_name, fdu.namespace)
+                        self.nm.assign_mac_address_to_interface_in_namespace(macvlan_temp_name, fdu.namespace, mac)
+                        self.nm.rename_virtual_interface_in_namespace(macvlan_temp_name, intf_name, fdu.namespace)
+                        intf_info = self.nm.assign_address_to_interface_in_namespace(intf_name, fdu.namespace)
+
+                        fdu.virtual_interfaces.append({'internal':intf_info.get('internal'), 'external':None})
+
+                    elif self.os.get_intf_type(real_intf_name) in ['wireless']:
+                        self.logger.error('configure_fdu()', 'Native FDU Plugin - Creating moving wireless interface to namespace')
+                        intf_info = self.nm.move_interface_in_namespace(real_intf_name, fdu.namespace)
+                        self.nm.rename_virtual_interface_in_namespace(real_intf_name, intf_name, fdu.namespace)
+                        intf_info.update({"name":intf_name})
+                        fdu.virtual_interfaces.append({'internal':intf_info, 'external':None})
+
+                    else:
+                        mac = intf.get('mac_address', self.__generate_random_mac())
+                        intf.update({'mac_address': mac})
+                        # create interface
+                        intf_info = self.nm.create_virtual_interface_in_namespace(intf_name, fdu.namespace)
+                        self.logger.info('configure_fdu()','Created interface {}'.format(intf_info))
+                         # attaching external face to bridge
+                        res = self.nm.attach_interface_to_bridge(intf_info.get('external').get('name'),real_intf_name)
+                        self.logger.info('configure_fdu()','Attached to bridge interface {}'.format(res))
+                        # assigning mac address
+                        res = self.nm.assign_mac_address_to_interface_in_namespace(intf_name, fdu.namespace, mac)
+                        self.logger.info('configure_fdu()','Assigned MAC to interface {}'.format(res))
+                        # assign ip address
+                        self.nm.assign_address_to_interface_in_namespace(intf_name, fdu.namespace)
+                        self.logger.info('configure_fdu()','Assigned IP to interface {}'.format(res))
+
+                        # adding to the list of interfaces
+                        fdu.virtual_interfaces.append({'internal':intf_info.get('internal'), 'external':intf_info.get('external')})
+                else:
+                    self.logger.error('configure_fdu()', 'Native FDU Plugin creating interface attached to connection point')
+                    mac = intf.get('mac_address', self.__generate_random_mac())
+                    intf.update({'mac_address': mac})
+                    intf_info = self.nm.create_virtual_interface_in_namespace(intf_name, fdu.namespace)
+                    self.logger.info('configure_fdu()','Created interface {}'.format(intf_info))
+                    res = self.nm.assign_mac_address_to_interface_in_namespace(intf_name, fdu.namespace, mac)
+
+                    if intf.get('cp_id') is not None:
+                        cp_id = intf.get('cp_id')
+                        cp = [x for x in fdu.instance_cps if x.get('cp_id') == cp_id]
+                        if len(cp) > 0:
+                            cp = cp[0]
+                            res = self.nm.attach_interface_to_bridge(intf_info.get('external').get('name'),cp.get('br_name'))
+                            self.logger.info('configure_fdu()','Attached to bridge interface {}'.format(res))
+                            self.nm.assign_address_to_interface_in_namespace(intf_name, fdu.namespace)
+                            self.logger.info('configure_fdu()','Assigned IP to interface {}'.format(res))
+                        else:
+                            self.logger.error('configure_fdu','Native FDU Plugin unable to find connection point {} for interface {}'.format(cp_id, intf_name))
+                    else:
+                        self.logger.error('configure_fdu','Native FDU Plugin interface {} is not connected to anything'.format(intf_name))
+
+                    fdu.virtual_interfaces.append({'internal':intf_info.get('internal'), 'external':intf_info.get('external')})
+
+
+
+
             fdu.on_configured('')
 
             self.logger.info('configure_fdu()', ' Native Plugin - FDU is {}'.format(fdu))
@@ -231,6 +320,16 @@ class Native(RuntimePluginFDU):
             native_dir = os.path.join(self.BASE_DIR, self.STORE_DIR, fdu_uuid, fdu.name)
             self.os.remove_dir(native_dir)
 
+            for i in fdu.virtual_interfaces:
+                if i.get('external') is not None:
+                    self.nm.detach_interface_from_bridge(i.get('external').get('name'))
+                self.nm.delete_virtual_interface_from_namespace(i.get('internal').get('name'), fdu.namespace)
+
+            for cp in fdu.instance_cps:
+                self.nm.remove_connection_point(cp.get('uuid'))
+
+            self.nm.delete_network_namespace(fdu.namespace)
+
             fdu.on_clean()
             self.current_fdus.update({instance_uuid: fdu})
             self.update_fdu_status(fdu_uuid, instance_uuid, 'DEFINE')
@@ -255,7 +354,7 @@ class Native(RuntimePluginFDU):
                 native_dir = os.path.join(self.BASE_DIR, self.STORE_DIR, fdu_uuid, fdu.name)
                 source_dir = os.path.join(self.BASE_DIR, self.STORE_DIR, fdu_uuid, fdu.name)
                 pid_file = os.path.join(self.BASE_DIR, self.STORE_DIR, fdu_uuid, fdu.name, instance_uuid)
-                run_script = self.__generate_run_script(fdu.cmd, fdu.args, source_dir, pid_file)
+                run_script = self.__generate_run_script(fdu.cmd, fdu.args, source_dir, pid_file, fdu.namespace)
                 if self.operating_system.lower() == 'linux':
                     self.os.store_file(run_script, native_dir, '{}_run.sh'.format(instance_uuid))
                     chmod_cmd = 'chmod +x {}'.format(os.path.join(native_dir, '{}_run.sh'.format(instance_uuid)))
@@ -286,7 +385,7 @@ class Native(RuntimePluginFDU):
                         template_xml = self.os.read_file(os.path.join(self.DIR, 'templates', 'run_native_unix2.sh'))
                         na_script = Environment().from_string(template_xml)
                         cmd = '{} {}'.format(fdu.cmd, ' '.join(fdu.args))
-                        na_script = na_script.render(command=cmd, outfile=pid_file, path=native_dir)
+                        na_script = na_script.render(command=cmd, outfile=pid_file, path=native_dir, namespace=fdu.namespace)
                         self.logger.info('run_fdu()', '[ INFO ] Lenght of runscript is {}'.format(len(na_script)))
                         self.os.store_file(na_script, native_dir, f_name)
                         chmod_cmd = 'chmod +x {}'.format(os.path.join(native_dir, f_name))
@@ -328,7 +427,8 @@ class Native(RuntimePluginFDU):
                 pid = fdu.pid
                 self.logger.info('stop_fdu()', 'FDU source is none')
                 self.logger.info('stop_fdu()', 'Native Plugin - PID {}'.format(pid))
-                self.os.send_sig_int(pid)
+                self.os.execute_command('sudo pkill -2 -P {}'.format(pid),blocking=True, external=False)
+                # self.os.send_sig_int(pid)
                 f_name = '{}.pid'.format(instance_uuid)
                 f_path = os.path.join(self.BASE_DIR, self.STORE_DIR)
                 pid_file = os.path.join(f_path, f_name)
@@ -336,23 +436,23 @@ class Native(RuntimePluginFDU):
                 if self.os.file_exists(pid_file):
                     pid = int(self.os.read_file(pid_file))
                     self.logger.info('stop_fdu()', 'Native Plugin - PID {}'.format(pid))
-                    self.os.execute_command('sudo pkill -9 -P {}'.format(pid),blocking=True, external=False)
+                    self.os.execute_command('sudo pkill -2 -P {}'.format(pid),blocking=True, external=False)
                     if self.os.check_if_pid_exists(pid):
-                        self.os.send_sig_int(pid)
+                        self.os.execute_command('sudo pkill -2 -P {}'.format(pid),blocking=True, external=False)
                         time.sleep(3)
                     if  self.os.check_if_pid_exists(pid):
-                        self.os.send_sig_kill(pid)
+                        self.os.execute_command('sudo pkill -9 -P {}'.format(pid),blocking=True, external=False)
                 pid_file = os.path.join(self.BASE_DIR, self.STORE_DIR, fdu_uuid, fdu.name, '{}.pid'.format(instance_uuid))
                 self.logger.info('stop_fdu()', 'Check if PID file exists {}'.format(pid_file))
                 if self.os.file_exists(pid_file):
                     pid = int(self.os.read_file(pid_file))
                     self.logger.info('stop_fdu()', 'Native Plugin - PID {}'.format(pid))
-                    self.os.execute_command('sudo pkill -9 -P {}'.format(pid), blocking=True, external=False)
+                    self.os.execute_command('sudo pkill -2 -P {}'.format(pid), blocking=True, external=False)
                     if self.os.check_if_pid_exists(pid):
-                        self.os.send_sig_int(pid)
+                        self.os.execute_command('sudo pkill -2 -P {}'.format(pid), blocking=True, external=False)
                         time.sleep(3)
                     if self.os.check_if_pid_exists(pid):
-                        self.os.send_sig_kill(pid)
+                        self.os.execute_command('sudo pkill -9 -P {}'.format(pid), blocking=True, external=False)
             else:
 
                 self.logger.info('stop_fdu()', 'Instance source is not none')
@@ -424,7 +524,7 @@ class Native(RuntimePluginFDU):
         self.logger.info('__execute_command()', 'PID = {}'.format(p.pid))
         return p
 
-    def __generate_run_script(self, cmd, args, directory, outfile):
+    def __generate_run_script(self, cmd, args, directory, outfile, ns=None):
         if self.operating_system.lower() == 'windows':
             if len(args) == 0:
                 self.logger.info('__generate_run_script()', ' Native Plugin - Generating run script for Windows')
@@ -454,7 +554,7 @@ class Native(RuntimePluginFDU):
                 p = self.BASE_DIR
             if len(args)>0:
                 cmd = cmd + ' {}'.format(' '.join(args))
-            na_script = na_script.render(path=p,command=cmd, outfile=outfile)
+            na_script = na_script.render(path=p,command=cmd, outfile=outfile, namespace=ns)
         return na_script
 
 
@@ -475,12 +575,24 @@ class Native(RuntimePluginFDU):
             else:
                 self.logger.info('__fdu_observer()', ' Native Plugin - Action not recognized : {}'.format(action))
         except FDUNotExistingException as nex:
+            self.logger.info('__fdu_observer()', ' Error: {}'.format(nex))
+            traceback.print_exc()
             self.write_fdu_error(fdu_info.get('fdu_uuid'), fdu_uuid, 9, nex)
             time.sleep(10)
             self.connector.loc.actual.remove_node_fdu(self.node, self.uuid, fdu_info.get('fdu_uuid'), fdu_uuid)
             return
         except StateTransitionNotAllowedException as stna:
+            self.logger.info('__fdu_observer()', ' Error: {}'.format(stna))
+            traceback.print_exc()
             self.write_fdu_error(fdu_info.get('fdu_uuid'), fdu_uuid, 10, stna)
+            time.sleep(5)
+            fdu = self.current_fdus.get(fdu_uuid)
+            self.update_fdu_status(fdu_info.get('fdu_uuid'), fdu_uuid,fdu.status)
+            return
+        except Exception as e:
+            self.logger.info('__fdu_observer()', ' Error: {}'.format(e))
+            traceback.print_exc()
+            self.write_fdu_error(fdu_info.get('fdu_uuid'), fdu_uuid, 10, e)
             time.sleep(5)
             fdu = self.current_fdus.get(fdu_uuid)
             self.update_fdu_status(fdu_info.get('fdu_uuid'), fdu_uuid,fdu.status)
@@ -521,6 +633,14 @@ class Native(RuntimePluginFDU):
                 self.undefine_fdu(fdu_uuid)
             if fdu.get_status() == State.DEFINED:
                 self.undefine_fdu(fdu_uuid)
+
+    def __generate_random_mac(self):
+        d = [ 0x00, 0x16,
+            random.randint(0x00, 0x7f),
+            random.randint(0x00, 0x7f),
+            random.randint(0x00, 0xff),
+            random.randint(0x00, 0xff) ]
+        return ':'.join(map(lambda x: "%02x" % x, d))
 
 
 def read_file(file_path):
