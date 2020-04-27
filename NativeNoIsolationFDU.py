@@ -19,7 +19,7 @@ from fog05_sdk.interfaces.InfraFDU import InfraFDU
 
 class NativeNoIsolationFDU(InfraFDU):
     def __init__(self, data):
-        super(NativeFDU, self).__init__(data)
+        super(NativeNoIsolationFDU, self).__init__(data)
 
         self.name = 'n{}'.format(self.uuid)
         self.cmd = None

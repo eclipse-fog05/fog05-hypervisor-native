@@ -809,8 +809,10 @@ class Native(RuntimePluginFDU):
 
 
     def __parse_environment(self, env):
-        env = env.split(',')
         d_env = {}
+        if env == "":
+            return d_env
+        env = env.split(',')
         for e in env:
             ev = e.split('=')
             k = ev[0]
