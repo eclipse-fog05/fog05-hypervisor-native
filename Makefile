@@ -20,18 +20,26 @@ install:
 ifeq "$(wildcard $(NATIVE_PLUGIN_DIR))" ""
 	mkdir -p $(NATIVE_PLUGIN_DIR)
 	sudo cp -r ./templates $(NATIVE_PLUGIN_DIR)
+	sudo cp -r ./templates_no_isolation $(NATIVE_PLUGIN_DIR)
 	sudo cp -r ./utils $(NATIVE_PLUGIN_DIR)
 	sudo cp ./__init__.py $(NATIVE_PLUGIN_DIR)
+	sudo cp ./isolation.py $(NATIVE_PLUGIN_DIR)
+	sudo cp ./no_isolation.py $(NATIVE_PLUGIN_DIR)
 	sudo cp ./native_plugin $(NATIVE_PLUGIN_DIR)
 	sudo cp ./NativeFDU.py $(NATIVE_PLUGIN_DIR)
+	sudo cp ./NativeNoIsolationFDU.py $(NATIVE_PLUGIN_DIR)
 	sudo cp ./README.md $(NATIVE_PLUGIN_DIR)
 	sudo cp ./native_plugin.json $(PLUGIN_CONF)
 else
 	sudo cp -r ./templates $(NATIVE_PLUGIN_DIR)
+	sudo cp -r ./templates_no_isolation $(NATIVE_PLUGIN_DIR)
 	sudo cp -r ./utils $(NATIVE_PLUGIN_DIR)
 	sudo cp ./__init__.py $(NATIVE_PLUGIN_DIR)
+	sudo cp ./isolation.py $(NATIVE_PLUGIN_DIR)
+	sudo cp ./no_isolation.py $(NATIVE_PLUGIN_DIR)
 	sudo cp ./native_plugin $(NATIVE_PLUGIN_DIR)
 	sudo cp ./NativeFDU.py $(NATIVE_PLUGIN_DIR)
+	sudo cp ./NativeNoIsolationFDU.py $(NATIVE_PLUGIN_DIR)
 	sudo cp ./README.md $(NATIVE_PLUGIN_DIR)
 endif
 	sudo chmod +x $(NATIVE_PLUGIN_DIR)/utils/containerize
