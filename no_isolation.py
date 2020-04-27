@@ -273,13 +273,7 @@ class NativeNoIsolation(RuntimePluginFDU):
         try:
             #  env is expected in format MYVAR=MYVALUE,MYVAR2=MYVALUE2,...
             #  converting to dictionary
-            env = env.split(',')
-            d_env = {}
-            for e in env:
-                ev = e.split('=')
-                k = ev[0]
-                v = ev[1]
-                d_env.update({k:v})
+            env = self.__parse_environment(env)
 
             fdu = self.current_fdus.get(instance_uuid, None)
             if fdu is None:
@@ -306,7 +300,7 @@ class NativeNoIsolation(RuntimePluginFDU):
                         cmd = '{}'.format(os.path.join(native_dir, '{}_run.ps1'.format(instance_uuid)))
                     else:
                         cmd = ''
-                    process = self.__execute_command(cmd, fdu.outfile, d_env)
+                    process = self.__execute_command(cmd, fdu.outfile, env)
                     time.sleep(1)
                     pid_file = '{}.pid'.format(pid_file)
                     # pid_file = os.path.join(self.BASE_DIR, self.STORE_DIR, fdu_uuid, fdu.name, pid_file)
@@ -342,7 +336,7 @@ class NativeNoIsolation(RuntimePluginFDU):
                         cmd = '{}'.format(os.path.join(native_dir, '{}_run.ps1'.format(instance_uuid)))
 
                     self.logger.info('start_fdu()', 'Command is {}'.format(cmd))
-                    process = self.__execute_command(cmd, fdu.outfile, d_env)
+                    process = self.__execute_command(cmd, fdu.outfile, env)
                     fdu.on_start(process.pid, process)
 
                 self.current_fdus.update({instance_uuid: fdu})
@@ -362,13 +356,7 @@ class NativeNoIsolation(RuntimePluginFDU):
 
             #  env is expected in format MYVAR=MYVALUE,MYVAR2=MYVALUE2,...
             #  converting to dictionary
-            env = env.split(',')
-            d_env = {}
-            for e in env:
-                ev = e.split('=')
-                k = ev[0]
-                v = ev[1]
-                d_env.update({k:v})
+            env = self.__parse_environment(env)
 
             fdu = self.current_fdus.get(instance_uuid, None)
             if fdu is None:
@@ -399,7 +387,7 @@ class NativeNoIsolation(RuntimePluginFDU):
                         cmd = '{}'.format(os.path.join(native_dir, '{}_run.ps1'.format(instance_uuid)))
                     else:
                         cmd = ''
-                    process = self.__execute_command_blocking(cmd, fdu.outfile, pid_file, d_envenv)
+                    process = self.__execute_command_blocking(cmd, fdu.outfile, pid_file, env)
                     time.sleep(1)
                     # pid_file = os.path.join(self.BASE_DIR, self.STORE_DIR, fdu_uuid, fdu.name, pid_file)
                     pid = int(self.os.read_file(pid_file))
@@ -434,7 +422,7 @@ class NativeNoIsolation(RuntimePluginFDU):
                         cmd = '{}'.format(os.path.join(native_dir, '{}_run.ps1'.format(instance_uuid)))
 
                     self.logger.info('run_blocking_fdu()', 'Command is {}'.format(cmd))
-                    process = self.__execute_command_blocking(cmd, fdu.outfile, pid_file, d_env)
+                    process = self.__execute_command_blocking(cmd, fdu.outfile, pid_file, env)
                     fdu.on_start(process.pid, process)
 
                 self.current_fdus.update({instance_uuid: fdu})
@@ -803,3 +791,14 @@ class NativeNoIsolation(RuntimePluginFDU):
                 self.undefine_fdu(fdu_uuid)
             if fdu.get_status() == State.DEFINED:
                 self.undefine_fdu(fdu_uuid)
+
+
+    def __parse_environment(self, env):
+        env = env.split(',')
+        d_env = {}
+        for e in env:
+            ev = e.split('=')
+            k = ev[0]
+            v = ev[1]
+            d_env.update({k:v})
+        return d_env
