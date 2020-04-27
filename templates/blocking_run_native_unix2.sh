@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 # Copyright (c) 2014,2020 ADLINK Technology Inc.
 #
 # See the NOTICE file(s) distributed with this work for additional
@@ -14,7 +13,5 @@
 #
 # Contributors: Gabriele Baldoni, ADLINK Technology Inc. - Base plugins set
 
-
-
-
-cd {{ path }} && sudo fos_containerize /var/run/netns/{{ namespace }} {{outfile}}_child.pid {{ command }} & echo $! > {{outfile}}.pid
+cd {{ path }}
+sudo fos_containerize /var/run/netns/{{ namespace }} {{outfile}}_child.pid {{ command }}

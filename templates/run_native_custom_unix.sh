@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Copyright (c) 2014,2018 ADLINK Technology Inc.
+# Copyright (c) 2014,2020 ADLINK Technology Inc.
 #
 # See the NOTICE file(s) distributed with this work for additional
 # information regarding copyright ownership.

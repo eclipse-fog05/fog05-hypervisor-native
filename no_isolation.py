@@ -1,6 +1,4 @@
-#!/usr/bin/env python3
-
-# Copyright (c) 2014,2018 ADLINK Technology Inc.
+# Copyright (c) 2014,2020 ADLINK Technology Inc.
 #
 # See the NOTICE file(s) distributed with this work for additional
 # information regarding copyright ownership.
@@ -25,7 +23,7 @@ import traceback
 from fog05_sdk.interfaces.States import State
 from fog05_sdk.interfaces.RuntimePluginFDU import *
 from fog05_sdk import Yaks_Connector
-from NativeFDU import NativeFDU
+from NativeNoIsolationFDU import NativeNoIsolationFDU
 from jinja2 import Environment
 from fog05_sdk.DLogger import DLogger
 from mvar import MVar
@@ -107,7 +105,7 @@ class NativeNoIsolation(RuntimePluginFDU):
 
     def define_fdu(self, fdu_record):
 
-        fdu = NativeFDU(fdu_record)
+        fdu = NativeNoIsolationFDU(fdu_record)
         fdu_uuid = fdu.get_fdu_id()
         instance_id = fdu.get_uuid()
 
