@@ -1,4 +1,4 @@
-# Copyright (c) 2014,2018 ADLINK Technology Inc.
+# Copyright (c) 2014,2020 ADLINK Technology Inc.
 #
 # See the NOTICE file(s) distributed with this work for additional
 # information regarding copyright ownership.
@@ -10,4 +10,4 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
 #
-# Contributors: Gabriele Baldoni, ADLINK Technology Inc. - Ocaml plugins set
+# Contributors: Gabriele Baldoni, ADLINK Technology Inc. - Base plugins set

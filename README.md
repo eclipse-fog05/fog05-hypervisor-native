@@ -1,4 +1,4 @@
-<!-- # Copyright (c) 2014,2018 ADLINK Technology Inc.
+<!-- # Copyright (c) 2014,2020 ADLINK Technology Inc.
 #
 # See the NOTICE file(s) distributed with this work for additional
 # information regarding copyright ownership.
@@ -25,11 +25,12 @@ This plugin allow fog05 to manage native applications
 supported operation:
 - deploy
 - destroy
-- {{ pid_file }} parameter in starting native applications
-
-todo:
-
-- configure application with parameters
+- isolation
+- network attachment
+- run (blocking)
+- get output
+- get files
+- list files
 
 ---
 package dependencies:
@@ -42,9 +43,3 @@ python dependencies:
 - psutil
 - jinja2
 
-
----
-
-config dependencies:
-
-- update the nodeid (result of `cat /etc/machine-id` ) in native_plugin.json->configuration->nodeid, and in case the yaks server is not in the same machine, also native_plugin.json->configuration->nodeid with the correct ip:port of the yaks server )

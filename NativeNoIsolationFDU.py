@@ -17,9 +17,9 @@ import os
 from fog05_sdk.interfaces.States import State
 from fog05_sdk.interfaces.InfraFDU import InfraFDU
 
-class NativeFDU(InfraFDU):
+class NativeNoIsolationFDU(InfraFDU):
     def __init__(self, data):
-        super(NativeFDU, self).__init__(data)
+        super(NativeNoIsolationFDU, self).__init__(data)
 
         self.name = 'n{}'.format(self.uuid)
         self.cmd = None
@@ -33,9 +33,6 @@ class NativeFDU(InfraFDU):
         self.pid = -1
         self.process = None
         self.source = ''
-        self.namespace = None
-        self.virtual_interfaces = []
-        self.instance_cps = []
         # self.outfile = ''
 
     def set_cmd(self, command):
