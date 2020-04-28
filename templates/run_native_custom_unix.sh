@@ -16,4 +16,4 @@
 
 
 
-sudo fos_containerize /var/run/netns/{{ namespace }} {{outfile}}_child.pid {{ path }}/{{ command }} & echo $! > {{outfile}}.pid
+sudo -E fos_containerize /var/run/netns/{{ namespace }} {{outfile}}_child.pid {{ path }}/{{ command }} & echo $! > {{outfile}}.pid
