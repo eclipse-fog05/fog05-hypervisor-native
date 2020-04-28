@@ -384,7 +384,7 @@ class Native(RuntimePluginFDU):
                     native_dir = os.path.join(self.BASE_DIR, self.STORE_DIR, fdu_uuid, fdu.name)
                     source_dir = os.path.join(self.BASE_DIR, self.STORE_DIR, fdu_uuid, fdu.name)
                     pid_file = os.path.join(self.BASE_DIR, self.STORE_DIR, fdu_uuid, fdu.name, instance_uuid)
-                    run_script = self.__generate_run_script(fdu.cmd, fdu.args, source_dir, pid_file)
+                    run_script = self.__generate_run_script(fdu.cmd, fdu.args, source_dir, pid_file, fdu.namespace)
                     if self.operating_system.lower() == 'linux':
                         self.os.store_file(run_script, native_dir, '{}_run.sh'.format(instance_uuid))
                         chmod_cmd = 'chmod +x {}'.format(os.path.join(native_dir, '{}_run.sh'.format(instance_uuid)))
@@ -425,7 +425,7 @@ class Native(RuntimePluginFDU):
                     elif self.operating_system.lower() == 'windows':
                         native_dir = os.path.join(self.BASE_DIR, self.STORE_DIR, fdu_uuid, fdu.name)
                         pid_file = os.path.join(self.BASE_DIR, self.STORE_DIR, fdu_uuid, fdu.name, instance_uuid)
-                        run_script = self.__generate_run_script(fdu.cmd, fdu.args, None, pid_file)
+                        run_script = self.__generate_run_script(fdu.cmd, fdu.args, None, pid_file, fdu.namespace)
                         self.logger.info('start_fdu()', '[ INFO ] PowerShell script is {}'.format(run_script))
                         self.os.store_file(run_script, native_dir, '{}_run.ps1'.format(instance_uuid))
                         cmd = '{}'.format(os.path.join(native_dir, '{}_run.ps1'.format(instance_uuid)))
@@ -471,7 +471,7 @@ class Native(RuntimePluginFDU):
                     native_dir = os.path.join(self.BASE_DIR, self.STORE_DIR, fdu_uuid, fdu.name)
                     source_dir = os.path.join(self.BASE_DIR, self.STORE_DIR, fdu_uuid, fdu.name)
                     pid_file = '{}.pid'.format(os.path.join(self.BASE_DIR, self.STORE_DIR, fdu_uuid, fdu.name, instance_uuid))
-                    run_script = self.__generate_blocking_run_script(fdu.cmd, fdu.args, source_dir)
+                    run_script = self.__generate_blocking_run_script(fdu.cmd, fdu.args, source_dir, fdu.namespace)
                     if self.operating_system.lower() == 'linux':
                         self.os.store_file(run_script, native_dir, '{}_run.sh'.format(instance_uuid))
                         chmod_cmd = 'chmod +x {}'.format(os.path.join(native_dir, '{}_run.sh'.format(instance_uuid)))
@@ -511,7 +511,7 @@ class Native(RuntimePluginFDU):
                     elif self.operating_system.lower() == 'windows':
                         native_dir = os.path.join(self.BASE_DIR, self.STORE_DIR, fdu_uuid, fdu.name)
                         pid_file = '{}.pid'.format(os.path.join(self.BASE_DIR, self.STORE_DIR, fdu_uuid, fdu.name, instance_uuid))
-                        run_script = self.__generate_blocking_run_script(fdu.cmd, fdu.args, None)
+                        run_script = self.__generate_blocking_run_script(fdu.cmd, fdu.args, None, fdu.namespace)
                         self.logger.info('run_blocking_fdu()', '[ INFO ] PowerShell script is {}'.format(run_script))
                         self.os.store_file(run_script, native_dir, '{}_run.ps1'.format(instance_uuid))
                         cmd = '{}'.format(os.path.join(native_dir, '{}_run.ps1'.format(instance_uuid)))
@@ -745,10 +745,10 @@ class Native(RuntimePluginFDU):
 
         return p
 
-    def __generate_blocking_run_script(self, cmd, args, directory):
+    def __generate_blocking_run_script(self, cmd, args, directory, ns):
         if self.operating_system.lower() == 'windows':
             if len(args) == 0:
-                self.logger.info('__generate_blocking_run_script()', 'Native Plugin - Generating run script for Windows')
+                self.logger.info('__generate_blocking_run_script()', ' Native Plugin (No Isolation) - Generating run script for Windows')
                 template_script = self.os.read_file(os.path.join(self.DIR, 'templates', 'run_native_windows.ps1'))
                 na_script = Environment().from_string(template_script)
                 if directory:
@@ -762,7 +762,23 @@ class Native(RuntimePluginFDU):
                     cmd = os.path.join(directory, cmd)
                 na_script = na_script.render(command=cmd,args_list=args)
 
-    def __generate_run_script(self, cmd, args, directory, outfile, ns=None):
+        else:
+            self.logger.info('__generate_blocking_run_script()', ' Native Plugin (No Isolation) - Generating run script for Linux')
+            if directory is None:
+                template_script = self.os.read_file(os.path.join(self.DIR, 'templates', 'blocking_run_native_unix2.sh'))
+            else:
+                template_script = self.os.read_file(os.path.join(self.DIR, 'templates', 'blocking_run_native_unix.sh'))
+            na_script = Environment().from_string(template_script)
+            if directory:
+                p = directory
+            else:
+                p = self.BASE_DIR
+            if len(args)>0:
+                cmd = cmd + ' {}'.format(' '.join(args))
+            na_script = na_script.render(path=p,command=cmd, namespace=ns)
+        return na_script
+
+    def __generate_run_script(self, cmd, args, directory, outfile, ns):
         if self.operating_system.lower() == 'windows':
             if len(args) == 0:
                 self.logger.info('__generate_run_script()', ' Native Plugin - Generating run script for Windows')
