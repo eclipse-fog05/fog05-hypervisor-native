@@ -415,7 +415,7 @@ class Native(RuntimePluginFDU):
                             template_xml = self.os.read_file(os.path.join(self.DIR, 'templates', 'run_native_unix2.sh'))
                             na_script = Environment().from_string(template_xml)
                             cmd = '{} {}'.format(fdu.cmd, ' '.join(fdu.args))
-                            na_script = na_script.render(command=cmd, outfile=pid_file, path=native_dir)
+                            na_script = na_script.render(command=cmd, outfile=pid_file, path=native_dir, namespace=fdu.namespace)
                             self.logger.info('start_fdu()', '[ INFO ] Lenght of runscript is {}'.format(len(na_script)))
                             self.os.store_file(na_script, native_dir, f_name)
                             chmod_cmd = 'chmod +x {}'.format(os.path.join(native_dir, f_name))
@@ -501,7 +501,7 @@ class Native(RuntimePluginFDU):
                             template_xml = self.os.read_file(os.path.join(self.DIR, 'templates', 'blocking_run_native_unix2.sh'))
                             na_script = Environment().from_string(template_xml)
                             cmd = '{} {}'.format(fdu.cmd, ' '.join(fdu.args))
-                            na_script = na_script.render(command=cmd, outfile=pid_file, path=native_dir)
+                            na_script = na_script.render(command=cmd, outfile=pid_file, path=native_dir, namespace=fdu.namespace)
                             self.logger.info('run_blocking_fdu()', '[ INFO ] Lenght of runscript is {}'.format(len(na_script)))
                             self.os.store_file(na_script, native_dir, f_name)
                             chmod_cmd = 'chmod +x {}'.format(os.path.join(native_dir, f_name))
@@ -715,7 +715,7 @@ class Native(RuntimePluginFDU):
             traceback.print_exc()
             return {'error':'{}'.format(e)}
 
-    def __execute_command(self, command, out_file):
+    def __execute_command(self, command, out_file, env={}):
         f = open(out_file, 'w')
         if self.operating_system.lower() == 'windows':
             p = psutil.Popen(['PowerShell', '-File', command], shell=True, stdout=f, stderr=f)
@@ -723,7 +723,7 @@ class Native(RuntimePluginFDU):
             # cmd = 'sh -c {}'.format(command)
             cmd_splitted = command.split()
             self.logger.info('__execute_command()', 'CMD SPLIT = {}'.format(cmd_splitted))
-            p = psutil.Popen(cmd_splitted, shell=False, stdout=f, stderr=f)
+            p = psutil.Popen(cmd_splitted, shell=False, stdout=f, stderr=f, stdin=PIPE, env=dict(os.environ,**env))
         self.logger.info('__execute_command()', 'PID = {}'.format(p.pid))
         return p
 
@@ -748,7 +748,7 @@ class Native(RuntimePluginFDU):
     def __generate_blocking_run_script(self, cmd, args, directory, ns):
         if self.operating_system.lower() == 'windows':
             if len(args) == 0:
-                self.logger.info('__generate_blocking_run_script()', ' Native Plugin (No Isolation) - Generating run script for Windows')
+                self.logger.info('__generate_blocking_run_script()', ' Native Plugin - Generating run script for Windows')
                 template_script = self.os.read_file(os.path.join(self.DIR, 'templates', 'run_native_windows.ps1'))
                 na_script = Environment().from_string(template_script)
                 if directory:
@@ -763,7 +763,7 @@ class Native(RuntimePluginFDU):
                 na_script = na_script.render(command=cmd,args_list=args)
 
         else:
-            self.logger.info('__generate_blocking_run_script()', ' Native Plugin (No Isolation) - Generating run script for Linux')
+            self.logger.info('__generate_blocking_run_script()', ' Native Plugin - Generating run script for Linux')
             if directory is None:
                 template_script = self.os.read_file(os.path.join(self.DIR, 'templates', 'blocking_run_native_unix2.sh'))
             else:
