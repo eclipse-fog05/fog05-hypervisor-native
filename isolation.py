@@ -642,6 +642,78 @@ class Native(RuntimePluginFDU):
         else:
             self.connector.loc.actual.remove_node_fdu(self.node, self.uuid, fdu_uuid, instance_uuid)
 
+    def get_log_fdu(self, instance_uuid, unit):
+        try:
+            self.logger.info('get_log_fdu()', ' Native Plugin - Running BE uuid {}'.format(instance_uuid))
+            fdu = self.current_fdus.get(instance_uuid, None)
+            if fdu is None:
+                self.logger.error('get_log_fdu()', 'Native Plugin - FDU not exists')
+                return {'error': 'FDU not exists'}
+            elif fdu.get_status() != State.CONFIGURED and fdu.get_status() != State.RUNNING:
+                self.logger.error('get_log_fdu()', 'Native Plugin - FDU state is wrong, or transition not allowed')
+                return {'error': 'FDU is not in correct state'}
+            else:
+                self.logger.info('get_log_fdu()', 'Native Plugin - FDU is {}'.format(fdu))
+                fdu_uuid = fdu.get_fdu_id()
+                out = open(fdu.outfile)
+                data = out.read()
+                out.close()
+                return {'result': data}
+
+        except Exception as e:
+            self.logger.info('get_log_fdu()', '[ ERRO ] Native Plugin - Error: {}'.format(e))
+            traceback.print_exc()
+            return {'error':'{}'.format(e)}
+
+    def get_ls_fdu(self, instance_uuid, unit):
+        try:
+            self.logger.info('get_ls_fdu()', ' Native Plugin - Running BE uuid {}'.format(instance_uuid))
+            fdu = self.current_fdus.get(instance_uuid, None)
+            if fdu is None:
+                self.logger.error('get_ls_fdu()', 'Native Plugin - FDU not exists')
+                return {'error': 'FDU not exists'}
+            elif fdu.get_status() != State.CONFIGURED and fdu.get_status() != State.RUNNING:
+                self.logger.error('get_log_fdu()', 'Native Plugin - FDU state is wrong, or transition not allowed')
+                return {'error': 'FDU is not in correct state'}
+            else:
+                self.logger.info('get_ls_fdu()', 'Native Plugin - FDU is {}'.format(fdu))
+                fdu_uuid = fdu.get_fdu_id()
+                native_dir = os.path.join(self.BASE_DIR, self.STORE_DIR, fdu_uuid, fdu.name)
+
+                res = json.dumps(os.listdir(native_dir))
+                return {'result': res}
+
+        except Exception as e:
+            self.logger.info('get_ls_fdu()', '[ ERRO ] Native Plugin - Error: {}'.format(e))
+            traceback.print_exc()
+            return {'error':'{}'.format(e)}
+
+    def get_file_fdu(self, instance_uuid, filename):
+        try:
+            self.logger.info('get_ls_fdu()', ' Native Plugin - Running BE uuid {}'.format(instance_uuid))
+            fdu = self.current_fdus.get(instance_uuid, None)
+            if fdu is None:
+                self.logger.error('get_ls_fdu()', 'Native Plugin - FDU not exists')
+                return {'error': 'FDU not exists'}
+            elif fdu.get_status() != State.CONFIGURED and fdu.get_status() != State.RUNNING:
+                self.logger.error('get_log_fdu()', 'Native Plugin - FDU state is wrong, or transition not allowed')
+                return {'error': 'FDU is not in correct state'}
+            else:
+                self.logger.info('get_ls_fdu()', 'Native Plugin - FDU is {}'.format(fdu))
+                fdu_uuid = fdu.get_fdu_id()
+                native_dir = os.path.join(self.BASE_DIR, self.STORE_DIR, fdu_uuid, fdu.name)
+                if os.path.exists(os.path.join(native_dir, filename)) and os.path.isfile(os.path.join(native_dir, filename)):
+                    out = open(os.path.join(native_dir, filename))
+                    data = out.read()
+                    out.close()
+                    return {'result': data}
+                else:
+                    return {'error':'file not exists or is directory'}
+
+        except Exception as e:
+            self.logger.info('get_ls_fdu()', '[ ERRO ] Native Plugin - Error: {}'.format(e))
+            traceback.print_exc()
+            return {'error':'{}'.format(e)}
 
     def __execute_command(self, command, out_file):
         f = open(out_file, 'w')
