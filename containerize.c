@@ -152,7 +152,7 @@ int main(int argc, char* argv[]){
                 }
 
         }else{
-                printf("[Usage] %s <network namespace> <cmd> [command arguments]\n", argv[0]);
+                printf("[Usage] %s <network namespace> <child pid file> <cmd> [command arguments]\n", argv[0]);
         }
 
 
