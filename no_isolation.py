@@ -213,9 +213,6 @@ class NativeNoIsolation(RuntimePluginFDU):
 
             self.logger.info('configure_fdu()', ' Native Plugin (No Isolation) - FDU is {}'.format(fdu))
 
-            self.current_fdus.update({instance_uuid: fdu})
-            self.update_fdu_status(fdu_uuid, instance_uuid, 'CONFIGURE')
-
             self.logger.info('configure_fdu()', '[ INFO ] Native Plugin (No Isolation) - Registreting blocking start/run/log/ls/file evals for {}'.format(instance_uuid))
             start_fun  = partial(self.start_fdu, instance_uuid)
             run_fun  = partial(self.run_blocking_fdu, instance_uuid)
@@ -232,6 +229,11 @@ class NativeNoIsolation(RuntimePluginFDU):
             except Exception as e:
                 self.logger.error('configure_fdu()', '[ ERRO ] Native Plugin (No Isolation) - Error in registering start/run/log/ls/file function: {}'.format(e))
                 traceback.print_exc()
+
+            self.current_fdus.update({instance_uuid: fdu})
+            self.update_fdu_status(fdu_uuid, instance_uuid, 'CONFIGURE')
+
+
 
             self.logger.info('configure_fdu()', '[ DONE ] Native Plugin (No Isolation) - Configure BE FDU uuid {}'.format(instance_uuid))
 
