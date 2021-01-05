@@ -81,8 +81,9 @@ assets = [
     ["etc/*", "/var/fos/native-hypervisor", "644"],
     ["resources/fos-hv-native.service", "/lib/systemd/system/fos-hv-native.service", "644"],
 ]
+conf-files = ["/etc/fos/native-hypervisor/config.yaml"]
+
 [package.metadata.deb.systemd-units]
 unit-scripts = "resources/"
 unit-name = "fos-hv-native.service"
 
-conf-files = ["/etc/fos/native-hypervisor/config.yaml"]
