@@ -77,10 +77,12 @@ assets = [
     ["target/release/native-hypervisor", "/usr/bin/fos-hv-native", "755"],
     ["target/release/native-isolate", "/usr/bin/native-isolate", "755"],
     # assets
-    ["etc/config.yaml", "/etc/fos/native-hypervisor", "644"],
-    ["etc/config.yaml", "/var/fos/native-hypervisor", "644"],
+    ["etc/*", "/etc/fos/native-hypervisor", "644"],
+    ["etc/*", "/var/fos/native-hypervisor", "644"],
     ["resources/fos-hv-native.service", "/lib/systemd/system/fos-hv-native.service", "644"],
 ]
 [package.metadata.deb.systemd-units]
 unit-scripts = "resources/"
 unit-name = "fos-hv-native.service"
+
+conf-files = ["/etc/fos/native-hypervisor/config.yaml"]
