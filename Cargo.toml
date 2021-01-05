@@ -69,7 +69,7 @@ copyright = "2020, ADLINK Technology Inc"
 extended-description = "Eclipse fog05 Linux Binaries Plugin"
 license-file = ["LICENSE.md", "0"]
 maintainer-scripts = "resources/debian/"
-depends = "$auto"
+depends = "fog05-agent (>= 0.3 ), fog05-agent (<< 0.4 ), $auto"
 section = "utils"
 priority = "optional"
 assets = [

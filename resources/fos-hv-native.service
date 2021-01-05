@@ -6,9 +6,9 @@ After=network.target
 [Service]
 Type=simple
 PIDFile=/var/fos/hv-native.pid
-ExecStart = sudo /usr/bin/fos-hv-native -c /etc/fos/native-hypervisor/config.yaml
+ExecStart = /usr/bin/fos-hv-native -c /etc/fos/native-hypervisor/config.yaml
 KillMode=process
 Restart=on-failure
-User=fos
+User=root
 [Install]
 WantedBy=multi-user.target
