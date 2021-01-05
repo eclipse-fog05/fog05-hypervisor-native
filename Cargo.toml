@@ -79,7 +79,7 @@ assets = [
     # assets
     ["etc/config.yaml", "/etc/fos/native-hypervisor", "644"],
     ["etc/config.yaml", "/var/fos/native-hypervisor", "644"],
-    ["debian/fos-hv-native.service", "/lib/systemd/system/fos-hv-native.service", "644"],
+    ["resources/fos-hv-native.service", "/lib/systemd/system/fos-hv-native.service", "644"],
 ]
 [package.metadata.deb.systemd-units]
 unit-scripts = "resources/"
