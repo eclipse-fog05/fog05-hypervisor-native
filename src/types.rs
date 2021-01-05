@@ -66,7 +66,7 @@ pub struct NativeHVState {
 
 #[derive(Clone)]
 pub struct NativeHypervisor {
-    pub z: Arc<zenoh::Zenoh>,
+    pub z: Arc<zenoh::net::Session>,
     pub connector: Arc<fog05_sdk::zconnector::ZConnector>,
     pub pid: u32,
     pub config: NativeHVConfig,

@@ -26,8 +26,8 @@ use async_std::task;
 use nix::sys::signal::{kill, Signal};
 use nix::unistd::Pid;
 
-use zrpc::ZServe;
-use zrpc_macros::zserver;
+use znrpc_macros::znserver;
+use zrpc::ZNServe;
 
 use fog05_sdk::agent::{AgentPluginInterfaceClient, OSClient};
 use fog05_sdk::fresult::{FError, FResult};
@@ -43,7 +43,7 @@ use crate::types::{
     serialize_native_specific_info, NativeHVSpecificInfo, NativeHypervisor,
 };
 
-#[zserver]
+#[znserver]
 impl HypervisorPlugin for NativeHypervisor {
     async fn define_fdu(&mut self, fdu: FDUDescriptor) -> FResult<FDURecord> {
         log::debug!("Define FDU {:?}", fdu);
@@ -591,7 +591,7 @@ impl NativeHypervisor {
         let hv_server = self
             .clone()
             .get_hypervisor_plugin_server(self.z.clone(), None);
-        hv_server.connect().await?;
+        let (stopper, _h) = hv_server.connect().await?;
         hv_server.initialize().await?;
 
         let mut guard = self.fdus.write().await;
@@ -631,7 +631,7 @@ impl NativeHypervisor {
 
         hv_server.stop(shv).await?;
         hv_server.unregister().await?;
-        hv_server.disconnect().await?;
+        hv_server.disconnect(stopper).await?;
 
         log::info!("DummyHypervisor main loop exiting");
         Ok(())
@@ -643,13 +643,13 @@ impl NativeHypervisor {
         async_std::channel::Sender<()>,
         async_std::task::JoinHandle<FResult<()>>,
     ) {
-        let local_os = OSClient::find_local_servers(self.z.clone()).await.unwrap();
+        let local_os = OSClient::find_servers(self.z.clone()).await.unwrap();
         if local_os.is_empty() {
             log::error!("Unable to find a local OS interface");
             panic!("No OS Server");
         }
 
-        let local_agent = AgentPluginInterfaceClient::find_local_servers(self.z.clone())
+        let local_agent = AgentPluginInterfaceClient::find_servers(self.z.clone())
             .await
             .unwrap();
         if local_agent.is_empty() {
@@ -657,7 +657,7 @@ impl NativeHypervisor {
             panic!("No Agent Server");
         }
 
-        let local_net = NetworkingPluginClient::find_local_servers(self.z.clone())
+        let local_net = NetworkingPluginClient::find_servers(self.z.clone())
             .await
             .unwrap();
         if local_net.is_empty() {
