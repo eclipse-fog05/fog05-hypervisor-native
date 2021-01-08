@@ -7,7 +7,9 @@ Description = Eclipse fog05 Native Plugin
 Type=simple
 PIDFile=/var/fos/hv-native.pid
 ExecStart = /usr/bin/fos-hv-native -c /etc/fos/native-hypervisor/config.yaml
-KillMode=process
+KillMode=mixed
+KillSignal=SIGINT
+RestartKillSignal=SIGINT
 Restart=on-failure
 User=root
 [Install]
