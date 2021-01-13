@@ -46,6 +46,7 @@ pub struct NativeHVSpecificInfo {
     pub env: HashMap<String, String>,
     pub instance_path: String,
     pub instance_files: Vec<String>,
+    pub image_folder: Option<String>,
     pub netns: Option<Uuid>,
 }
 
