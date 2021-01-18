@@ -194,20 +194,27 @@ fn main() {
 
                     let sig_handle = signals.handle();
 
-                    let mut signals = signals.fuse();
-                    if let Some(signal) = signals.next().await {
-                        match signal {
-                            signal_hook::SIGTERM | signal_hook::SIGINT | signal_hook::SIGQUIT => {
-                                log::trace!("Received stop signal closing...");
+                    let ch = child.clone();
+                    let wait_future = async_std::task::spawn_blocking(move || {
+                        async_std::task::block_on(async {
+                            let mut signals = signals.fuse();
+                            if let Some(signal) = signals.next().await {
+                                match signal {
+                                    signal_hook::SIGTERM
+                                    | signal_hook::SIGINT
+                                    | signal_hook::SIGQUIT => {
+                                        log::trace!("Received stop signal closing...");
+                                    }
+                                    _ => unreachable!(),
+                                }
                             }
-                            _ => unreachable!(),
-                        }
-                    }
 
-                    match kill(child, Some(Signal::SIGINT)) {
-                        Ok(_) => log::trace!("Sending signal success"),
-                        Err(e) => log::error!("Sending signal error {}", e),
-                    }
+                            match kill(ch, Some(Signal::SIGINT)) {
+                                Ok(_) => log::trace!("Sending signal success"),
+                                Err(e) => log::error!("Sending signal error {}", e),
+                            }
+                        })
+                    });
 
                     match waitpid(child, None) {
                         Ok(_) => {

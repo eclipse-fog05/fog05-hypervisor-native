@@ -26,7 +26,7 @@ use async_std::task;
 use nix::sys::signal::{kill, Signal};
 use nix::unistd::Pid;
 
-use psutil::process::{processes,Process, Status as ProcessStatus, ProcessError};
+use psutil::process::{processes, Process, ProcessError, Status as ProcessStatus};
 
 use znrpc_macros::znserver;
 use zrpc::ZNServe;
@@ -232,7 +232,6 @@ impl HypervisorPlugin for NativeHypervisor {
                     }
                     None => (),
                 };
-
 
                 // Adding hv specific info
                 instance.hypervisor_specific = Some(serialize_native_specific_info(&hv_specific)?);
@@ -754,30 +753,33 @@ impl NativeHypervisor {
                     }
                 }
 
-                fn find_process(pid : u32) -> FResult<Process> {
+                fn find_process(pid: u32) -> FResult<Process> {
                     let mut processes = processes().unwrap();
-                    let find = processes.into_iter().find(|p|
-                        p.as_ref().unwrap().pid() == pid);
+                    let find = processes
+                        .into_iter()
+                        .find(|p| p.as_ref().unwrap().pid() == pid);
                     if let Some(p) = find {
-                       match p {
-                           Ok(p) => { return Ok(p); }
-                           Err(ProcessError::NoSuchProcess{ pid }) => {
-                               log::error!("Process {} not found", pid);
-                               return Err(FError::NotFound);
-                           }
-                           Err(ProcessError::ZombieProcess{ pid }) => {
-                            log::error!("Process {} is zombie!", pid);
-                            return Err(FError::NotFound);
-                           }
-                           Err(ProcessError::AccessDenied{ pid }) => {
-                            log::error!("Access denined for process {}", pid);
-                            return Err(FError::NotFound);
-                           }
-                           Err(ProcessError::PsutilError{pid, source}) => {
-                            log::error!("Psutil got error {:?} for PID {}",source, pid);
-                            return Err(FError::NotFound);
-                           }
-                       }
+                        match p {
+                            Ok(p) => {
+                                return Ok(p);
+                            }
+                            Err(ProcessError::NoSuchProcess { pid }) => {
+                                log::error!("Process {} not found", pid);
+                                return Err(FError::NotFound);
+                            }
+                            Err(ProcessError::ZombieProcess { pid }) => {
+                                log::error!("Process {} is zombie!", pid);
+                                return Err(FError::NotFound);
+                            }
+                            Err(ProcessError::AccessDenied { pid }) => {
+                                log::error!("Access denined for process {}", pid);
+                                return Err(FError::NotFound);
+                            }
+                            Err(ProcessError::PsutilError { pid, source }) => {
+                                log::error!("Psutil got error {:?} for PID {}", source, pid);
+                                return Err(FError::NotFound);
+                            }
+                        }
                     }
                     Err(FError::NotFound)
                 }
@@ -785,79 +787,88 @@ impl NativeHypervisor {
                 log::trace!("Local Instances: {:?}", local_instances);
 
                 for mut i in local_instances {
-                    let mut hv_specific = deserialize_native_specific_info(
-                        &i.clone().hypervisor_specific.unwrap().as_slice(),
-                    ).unwrap();
+                    if let Some(hv_specific) = i.clone().hypervisor_specific {
+                        let mut hv_specific =
+                            deserialize_native_specific_info(&hv_specific.as_slice()).unwrap();
 
-                    match i.status {
-                        FDUState::RUNNING => {
-                            log::trace!("State of FDU is expected running");
-                            if let Ok(process) = find_process(hv_specific.pid) {
-                                match process.status().unwrap() {
-                                    ProcessStatus::Running | ProcessStatus::Idle | ProcessStatus::Sleeping => {
-                                        log::trace!("Process is running, status is coherent...");
-                                    }
-                                    _ => {
-                                        log::error!("FDU Instance {} is not running", i.uuid);
-                                        // Here we should recover.
-                                        // This needs to become a function
-                                        // First we set the status to error
-                                        i.status = FDUState::ERROR(format!("FDU not running!"));
-
-
-                                        i.hypervisor_specific = Some(serialize_native_specific_info(&hv_specific).unwrap());
-                                        mon_self.connector
-                                            .global
-                                            .add_node_instance(node_uuid, &i)
-                                            .await;
-
-                                        // then we try to start the fdu.
-                                        if let Ok(_) = mon_self.start_fdu(i.uuid).await {
-                                            log::trace!("FDU re-started correctly");
-                                        } else {
-                                            log::trace!("Unable to restart FDU {}", i.uuid);
+                        match i.status {
+                            FDUState::RUNNING => {
+                                log::trace!("State of FDU is expected running");
+                                if let Ok(process) = find_process(hv_specific.pid) {
+                                    match process.status().unwrap() {
+                                        ProcessStatus::Running
+                                        | ProcessStatus::Idle
+                                        | ProcessStatus::Sleeping => {
+                                            log::trace!(
+                                                "Process is running, status is coherent..."
+                                            );
                                         }
+                                        _ => {
+                                            log::error!("FDU Instance {} is not running", i.uuid);
+                                            // Here we should recover.
+                                            // This needs to become a function
+                                            // First we set the status to error
+                                            i.status = FDUState::ERROR(format!("FDU not running!"));
 
+                                            i.hypervisor_specific = Some(
+                                                serialize_native_specific_info(&hv_specific)
+                                                    .unwrap(),
+                                            );
+                                            mon_self
+                                                .connector
+                                                .global
+                                                .add_node_instance(node_uuid, &i)
+                                                .await;
+
+                                            // then we try to start the fdu.
+                                            if let Ok(_) = mon_self.start_fdu(i.uuid).await {
+                                                log::trace!("FDU re-started correctly");
+                                            } else {
+                                                log::trace!("Unable to restart FDU {}", i.uuid);
+                                            }
+                                        }
                                     }
-                                }
-                            } else {
-                                log::trace!("Unable to find the process {} for the instance", hv_specific.pid);
-                                // Here we should recover.
-
-                                // This needs to become a function
-                                // First we set the status to error
-                                i.status = FDUState::ERROR(format!("FDU not running!"));
-
-                                i.hypervisor_specific = Some(serialize_native_specific_info(&hv_specific).unwrap());
-                                mon_self.connector
-                                    .global
-                                    .add_node_instance(node_uuid, &i)
-                                    .await;
-
-                                // then we try to start the fdu.
-                                if let Ok(_) = mon_self.start_fdu(i.uuid).await {
-                                    log::trace!("FDU re-started correctly");
                                 } else {
-                                    log::trace!("Unable to restart FDU {}", i.uuid);
+                                    log::trace!(
+                                        "Unable to find the process {} for the instance",
+                                        hv_specific.pid
+                                    );
+                                    // Here we should recover.
+
+                                    // This needs to become a function
+                                    // First we set the status to error
+                                    i.status = FDUState::ERROR(format!("FDU not running!"));
+
+                                    i.hypervisor_specific =
+                                        Some(serialize_native_specific_info(&hv_specific).unwrap());
+                                    mon_self
+                                        .connector
+                                        .global
+                                        .add_node_instance(node_uuid, &i)
+                                        .await;
+
+                                    // then we try to start the fdu.
+                                    if let Ok(_) = mon_self.start_fdu(i.uuid).await {
+                                        log::trace!("FDU re-started correctly");
+                                    } else {
+                                        log::trace!("Unable to restart FDU {}", i.uuid);
+                                    }
                                 }
                             }
+                            FDUState::DEFINED => {
+                                log::trace!("State of FDU is expected defined");
+                            }
+                            FDUState::CONFIGURED => {
+                                log::trace!("State of FDU is expected configured");
+                            }
+                            FDUState::ERROR(e) => {
+                                log::error!("State of FDU is error: {}", e);
+                            }
                         }
-                        FDUState::DEFINED => {
-                            log::trace!("State of FDU is expected defined");
-                        }
-                        FDUState::CONFIGURED => {
-                            log::trace!("State of FDU is expected configured");
-                        }
-                        FDUState::ERROR(e) => {
-                            log::error!("State of FDU is error: {}", e);
-                        }
+                    } else {
+                        log::trace!("FDU {} has no hypervisor specific info", i.uuid);
                     }
-
-
-
                 }
-
-
             }
         };
 
