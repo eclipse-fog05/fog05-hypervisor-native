@@ -1,0 +1,66 @@
+%define __spec_install_post %{nil}
+%define __os_install_post %{_dbpath}/brp-compress
+%define debug_package %{nil}
+
+Name: {{ name }}
+Summary: {{ summary }}
+Version: @@VERSION@@
+Release: @@RELEASE@@%{?dist}
+{{#if license ~}}
+License: {{ license }}
+{{/if ~}}
+{{#if service ~}}
+Group: System Environment/Daemons
+{{else ~}}
+Group: Applications/System
+{{/if ~}}
+Source0: %{name}-%{version}.tar.gz
+{{#if url ~}}
+URL: {{ url }}
+{{/if}}
+BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
+BuildRequires: systemd
+Requires(post): systemd, /usr/bin/chown
+Requires(preun): systemd
+Requires(postun): systemd
+Requires: fog05-agent >= 0.3.0, fog05-agent < 0.4.0
+%description
+%{summary}
+
+%prep
+%setup -q
+
+
+%install
+rm -rf %{buildroot}
+mkdir -p %{buildroot}
+cp -a * %{buildroot}
+
+%clean
+rm -rf %{buildroot}
+
+
+%post
+%systemd_post {{service}}
+/usr/bin/chown fos:fos -R /var/fos
+
+%preun
+%systemd_preun {{service}}
+
+%postun
+%systemd_postun_with_restart {{service}}
+
+
+%files
+%defattr(-,root,root,-)
+%config(noreplace) /etc/fos/native-hypervisor/config.yaml
+/var/fos/native-hypervisor/placeholder
+/lib/systemd/system/fos-hv-native.service
+{{#if use_sbin ~}}
+%{_sbindir}/*
+{{else ~}}
+%{_bindir}/*
+{{/if ~}}
+{{#if service ~}}
+%{_unitdir}/{{service}}
+{{/if ~}}
