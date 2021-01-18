@@ -38,6 +38,7 @@ log = "0.4"
 env_logger = "0.7.1"
 git-version = "0.3.4"
 nix = {version = "0.19.0"}
+psutil = {version = "3.2.0"}
 signal-hook = "0.2.1"
 signal-hook-async-std = "0.1.0"
 caps = {version = "0.5.0", optional = true}
@@ -65,6 +66,8 @@ codegen-units = 1
 opt-level = 3
 panic = "abort"
 
+# Debian package configuration
+
 [package.metadata.deb]
 maintainer = "ADLINK fog05 team <fog05@adlink-labs.tech>"
 copyright = "2020, ADLINK Technology Inc"
@@ -80,7 +83,7 @@ assets = [
     ["target/release/native-isolate", "/usr/bin/native-isolate", "755"],
     # assets
     ["etc/*", "/etc/fos/native-hypervisor", "644"],
-    ["etc/*", "/var/fos/native-hypervisor", "644"],
+    ["var/*", "/var/fos/native-hypervisor", "644"],
     ["resources/fos-hv-native.service", "/lib/systemd/system/fos-hv-native.service", "644"],
 ]
 conf-files = ["/etc/fos/native-hypervisor/config.yaml"]
@@ -89,3 +92,21 @@ conf-files = ["/etc/fos/native-hypervisor/config.yaml"]
 unit-scripts = "resources/"
 unit-name = "fos-hv-native.service"
 
+
+
+# RPM package configuration
+
+[package.metadata.rpm]
+package = "fog05-native-hypervisor"
+
+[package.metadata.rpm.cargo]
+buildflags = ["--release"]
+
+[package.metadata.rpm.targets]
+native-hypervisor = { path = "/usr/bin/fos-hv-native" }
+native-isolate = { path = "/usr/bin/native-isolate" }
+
+[package.metadata.rpm.files]
+"../etc/config.yaml" = { path = "/etc/fos/native-hypervisor/config.yaml", mode = "644", username = "fos" }
+"../var/placeholder" = { path = "/var/fos/native-hypervisor/placeholder", username = "fos" }
+"../resources/fos-hv-native.service" = { path = "/lib/systemd/system/fos-hv-native.service" }

@@ -26,6 +26,8 @@ use async_std::task;
 use nix::sys::signal::{kill, Signal};
 use nix::unistd::Pid;
 
+use psutil::process::{processes,Process, Status as ProcessStatus, ProcessError};
+
 use znrpc_macros::znserver;
 use zrpc::ZNServe;
 
@@ -89,7 +91,7 @@ impl HypervisorPlugin for NativeHypervisor {
             .get_node_instance(node_uuid, instance_uuid)
             .await?;
         match instance.status {
-            FDUState::DEFINED => {
+            FDUState::DEFINED | FDUState::ERROR(_) => {
                 let mut guard = self.fdus.write().await;
                 guard.fdus.remove(&instance_uuid);
                 self.connector
@@ -115,7 +117,7 @@ impl HypervisorPlugin for NativeHypervisor {
             .await?;
         log::trace!("Check FDU status: {:?}", instance.status);
         match instance.status {
-            FDUState::DEFINED => {
+            FDUState::DEFINED | FDUState::ERROR(_) => {
                 let mut guard = self.fdus.write().await; //taking lock
 
                 // Here we should create the network interfaces
@@ -162,6 +164,7 @@ impl HypervisorPlugin for NativeHypervisor {
                     instance_path,
                     instance_files: Vec::new(),
                     netns: fdu_ns,
+                    expected_state: Some(FDUState::CONFIGURED),
                 };
 
                 //creating instance path
@@ -229,6 +232,7 @@ impl HypervisorPlugin for NativeHypervisor {
                     }
                     None => (),
                 };
+
 
                 // Adding hv specific info
                 instance.hypervisor_specific = Some(serialize_native_specific_info(&hv_specific)?);
@@ -376,6 +380,7 @@ impl HypervisorPlugin for NativeHypervisor {
                 instance.interfaces = interfaces;
                 instance.connection_points = cps.into_iter().map(|(_, v)| v).collect();
                 instance.status = FDUState::CONFIGURED;
+
                 self.connector
                     .global
                     .add_node_instance(node_uuid, &instance)
@@ -397,7 +402,7 @@ impl HypervisorPlugin for NativeHypervisor {
             .get_node_instance(node_uuid, instance_uuid)
             .await?;
         match instance.status {
-            FDUState::CONFIGURED => {
+            FDUState::CONFIGURED | FDUState::ERROR(_) => {
                 let mut guard = self.fdus.write().await;
 
                 let mut hv_specific = deserialize_native_specific_info(
@@ -493,6 +498,7 @@ impl HypervisorPlugin for NativeHypervisor {
 
                 hv_specific.instance_files = Vec::new();
                 hv_specific.env = HashMap::new();
+                hv_specific.expected_state = Some(FDUState::DEFINED);
 
                 instance.hypervisor_specific = Some(serialize_native_specific_info(&hv_specific)?);
                 instance.interfaces = Vec::new();
@@ -521,7 +527,7 @@ impl HypervisorPlugin for NativeHypervisor {
             .await?;
         log::trace!("Instance status {:?}", instance.status);
         match instance.status {
-            FDUState::CONFIGURED => {
+            FDUState::CONFIGURED | FDUState::ERROR(_) => {
                 let mut guard = self.fdus.write().await;
 
                 let descriptor = self
@@ -577,6 +583,7 @@ impl HypervisorPlugin for NativeHypervisor {
 
                 hv_specific.instance_files.push(out_filename.clone());
                 hv_specific.instance_files.push(err_filename.clone());
+                hv_specific.expected_state = Some(FDUState::RUNNING);
 
                 let out = File::create(out_filename)?;
                 let err = File::create(err_filename)?;
@@ -633,7 +640,7 @@ impl HypervisorPlugin for NativeHypervisor {
             .await?;
         log::trace!("Instance status {:?}", instance.status);
         match instance.status {
-            FDUState::RUNNING => {
+            FDUState::RUNNING | FDUState::ERROR(_) => {
                 let mut guard = self.fdus.write().await;
                 instance.status = FDUState::CONFIGURED;
 
@@ -662,6 +669,7 @@ impl HypervisorPlugin for NativeHypervisor {
                 }
 
                 hv_specific.pid = 0;
+                hv_specific.expected_state = Some(FDUState::CONFIGURED);
 
                 instance.hypervisor_specific = Some(serialize_native_specific_info(&hv_specific)?);
 
@@ -720,10 +728,136 @@ impl NativeHypervisor {
 
         let (shv, hhv) = hv_server.start().await?;
 
+        let node_uuid = self.agent.as_ref().unwrap().get_node_uuid().await??;
+        let mut mon_self = self.clone();
         let monitoring = async {
             loop {
                 log::info!("Monitoring loop started");
-                task::sleep(Duration::from_secs(60)).await;
+
+                // monitoring interveal should be configurable
+                task::sleep(Duration::from_secs(mon_self.config.monitoring_interveal)).await;
+
+                let mut local_instances = Vec::new();
+                let node_fdus_instances = self
+                    .connector
+                    .global
+                    .get_node_instances(node_uuid)
+                    .await
+                    .unwrap();
+
+                for i in node_fdus_instances {
+                    log::trace!("Node FDU: {}", i.uuid);
+                    if let Some(desc) = self.connector.global.get_fdu(i.fdu_uuid).await.ok() {
+                        if desc.hypervisor == String::from("bare") {
+                            local_instances.push(i)
+                        }
+                    }
+                }
+
+                fn find_process(pid : u32) -> FResult<Process> {
+                    let mut processes = processes().unwrap();
+                    let find = processes.into_iter().find(|p|
+                        p.as_ref().unwrap().pid() == pid);
+                    if let Some(p) = find {
+                       match p {
+                           Ok(p) => { return Ok(p); }
+                           Err(ProcessError::NoSuchProcess{ pid }) => {
+                               log::error!("Process {} not found", pid);
+                               return Err(FError::NotFound);
+                           }
+                           Err(ProcessError::ZombieProcess{ pid }) => {
+                            log::error!("Process {} is zombie!", pid);
+                            return Err(FError::NotFound);
+                           }
+                           Err(ProcessError::AccessDenied{ pid }) => {
+                            log::error!("Access denined for process {}", pid);
+                            return Err(FError::NotFound);
+                           }
+                           Err(ProcessError::PsutilError{pid, source}) => {
+                            log::error!("Psutil got error {:?} for PID {}",source, pid);
+                            return Err(FError::NotFound);
+                           }
+                       }
+                    }
+                    Err(FError::NotFound)
+                }
+
+                log::trace!("Local Instances: {:?}", local_instances);
+
+                for mut i in local_instances {
+                    let mut hv_specific = deserialize_native_specific_info(
+                        &i.clone().hypervisor_specific.unwrap().as_slice(),
+                    ).unwrap();
+
+                    match i.status {
+                        FDUState::RUNNING => {
+                            log::trace!("State of FDU is expected running");
+                            if let Ok(process) = find_process(hv_specific.pid) {
+                                match process.status().unwrap() {
+                                    ProcessStatus::Running | ProcessStatus::Idle | ProcessStatus::Sleeping => {
+                                        log::trace!("Process is running, status is coherent...");
+                                    }
+                                    _ => {
+                                        log::error!("FDU Instance {} is not running", i.uuid);
+                                        // Here we should recover.
+                                        // This needs to become a function
+                                        // First we set the status to error
+                                        i.status = FDUState::ERROR(format!("FDU not running!"));
+
+
+                                        i.hypervisor_specific = Some(serialize_native_specific_info(&hv_specific).unwrap());
+                                        mon_self.connector
+                                            .global
+                                            .add_node_instance(node_uuid, &i)
+                                            .await;
+
+                                        // then we try to start the fdu.
+                                        if let Ok(_) = mon_self.start_fdu(i.uuid).await {
+                                            log::trace!("FDU re-started correctly");
+                                        } else {
+                                            log::trace!("Unable to restart FDU {}", i.uuid);
+                                        }
+
+                                    }
+                                }
+                            } else {
+                                log::trace!("Unable to find the process {} for the instance", hv_specific.pid);
+                                // Here we should recover.
+
+                                // This needs to become a function
+                                // First we set the status to error
+                                i.status = FDUState::ERROR(format!("FDU not running!"));
+
+                                i.hypervisor_specific = Some(serialize_native_specific_info(&hv_specific).unwrap());
+                                mon_self.connector
+                                    .global
+                                    .add_node_instance(node_uuid, &i)
+                                    .await;
+
+                                // then we try to start the fdu.
+                                if let Ok(_) = mon_self.start_fdu(i.uuid).await {
+                                    log::trace!("FDU re-started correctly");
+                                } else {
+                                    log::trace!("Unable to restart FDU {}", i.uuid);
+                                }
+                            }
+                        }
+                        FDUState::DEFINED => {
+                            log::trace!("State of FDU is expected defined");
+                        }
+                        FDUState::CONFIGURED => {
+                            log::trace!("State of FDU is expected configured");
+                        }
+                        FDUState::ERROR(e) => {
+                            log::error!("State of FDU is error: {}", e);
+                        }
+                    }
+
+
+
+                }
+
+
             }
         };
 

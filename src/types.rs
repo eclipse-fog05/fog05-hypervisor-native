@@ -48,6 +48,7 @@ pub struct NativeHVSpecificInfo {
     pub instance_files: Vec<String>,
     pub image_folder: Option<String>,
     pub netns: Option<Uuid>,
+    pub expected_state: Option<FDUState>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
