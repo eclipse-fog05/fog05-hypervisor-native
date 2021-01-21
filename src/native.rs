@@ -179,60 +179,57 @@ impl HypervisorPlugin for NativeHypervisor {
                 // Native Plugin expects images to be packaged as .tar.gz
                 // once the download is complete the image will be
                 // decompressed
-                match descriptor.image {
-                    Some(img) => {
-                        let uri = url::Url::parse(&img.uri.clone())
-                            .map_err(|e| FError::HypervisorError(format!("{}", e)))?;
-                        let img_uri = img.uri.clone();
-                        let splitter_uri = img_uri.split("/").collect::<Vec<&str>>();
-                        let f_name = splitter_uri.last().ok_or(FError::NotFound)?;
-                        let f_path = self
-                            .get_run_path()
-                            .join(format!("{}", instance_uuid))
-                            .join(format!("{}", f_name))
-                            .to_str()
-                            .ok_or(FError::EncodingError)?
-                            .to_string();
-                        log::trace!("Image {} will be downloaded in {}", uri, f_path);
-                        self.os
-                            .as_ref()
-                            .unwrap()
-                            .download_file(uri, f_path.clone())
-                            .await??;
+                if let Some(img) = descriptor.image {
+                    let uri = url::Url::parse(&img.uri.clone())
+                        .map_err(|e| FError::HypervisorError(format!("{}", e)))?;
+                    let img_uri = img.uri.clone();
+                    let splitter_uri = img_uri.split('/').collect::<Vec<&str>>();
+                    let f_name = splitter_uri.last().ok_or(FError::NotFound)?;
+                    let f_path = self
+                        .get_run_path()
+                        .join(format!("{}", instance_uuid))
+                        .join(f_name.to_string())
+                        .to_str()
+                        .ok_or(FError::EncodingError)?
+                        .to_string();
+                    log::trace!("Image {} will be downloaded in {}", uri, f_path);
+                    self.os
+                        .as_ref()
+                        .unwrap()
+                        .download_file(uri, f_path.clone())
+                        .await??;
 
-                        let img_name = match f_name.strip_suffix(".tar.gz") {
-                            Some(x) => x,
-                            None => {
-                                return Err(FError::HypervisorError(
-                                    "Image is not packaged as .tar.gz".to_string(),
-                                ));
-                            }
-                        };
+                    let img_name = match f_name.strip_suffix(".tar.gz") {
+                        Some(x) => x,
+                        None => {
+                            return Err(FError::HypervisorError(
+                                "Image is not packaged as .tar.gz".to_string(),
+                            ));
+                        }
+                    };
 
-                        let img_folder_path = self
-                            .get_run_path()
-                            .join(format!("{}", instance_uuid))
-                            .join(format!("{}", img_name))
-                            .to_str()
-                            .ok_or(FError::EncodingError)?
-                            .to_string();
+                    let img_folder_path = self
+                        .get_run_path()
+                        .join(format!("{}", instance_uuid))
+                        .join(img_name.to_string())
+                        .to_str()
+                        .ok_or(FError::EncodingError)?
+                        .to_string();
 
-                        log::trace!("Expected image folder {}", img_folder_path);
+                    log::trace!("Expected image folder {}", img_folder_path);
 
-                        let cmd = format!(
-                            "tar -xzf {} -C {}",
-                            f_path,
-                            hv_specific.clone().instance_path
-                        );
+                    let cmd = format!(
+                        "tar -xzf {} -C {}",
+                        f_path,
+                        hv_specific.clone().instance_path
+                    );
 
-                        log::trace!("Decompressing command {}", cmd);
+                    log::trace!("Decompressing command {}", cmd);
 
-                        self.os.as_ref().unwrap().execute_command(cmd).await??;
+                    self.os.as_ref().unwrap().execute_command(cmd).await??;
 
-                        hv_specific.image_folder = Some(String::from(img_folder_path));
-                    }
-                    None => (),
-                };
+                    hv_specific.image_folder = Some(img_folder_path);
+                }
 
                 // Adding hv specific info
                 instance.hypervisor_specific = Some(serialize_native_specific_info(&hv_specific)?);
@@ -448,46 +445,43 @@ impl HypervisorPlugin for NativeHypervisor {
                     }
                 }
 
-                match descriptor.image {
-                    Some(img) => {
-                        let img_uri = img.uri.clone();
-                        let splitter_uri = img_uri.split("/").collect::<Vec<&str>>();
-                        let f_name = splitter_uri.last().ok_or(FError::NotFound)?;
-                        let f_path = self
-                            .get_run_path()
-                            .join(format!("{}", instance_uuid))
-                            .join(format!("{}", f_name))
-                            .to_str()
-                            .ok_or(FError::EncodingError)?
-                            .to_string();
-                        match std::fs::remove_file(f_path.clone()) {
-                            Ok(_) => log::trace!("Removed {}", f_path),
-                            Err(e) => log::warn!("file {} {}", f_path, e),
-                        }
-
-                        let img_name = match f_name.strip_suffix(".tar.gz") {
-                            Some(x) => x,
-                            None => {
-                                return Err(FError::HypervisorError(
-                                    "Image is not packaged as .tar.gz".to_string(),
-                                ));
-                            }
-                        };
-
-                        let img_folder_path = self
-                            .get_run_path()
-                            .join(format!("{}", instance_uuid))
-                            .join(format!("{}", img_name))
-                            .to_str()
-                            .ok_or(FError::EncodingError)?
-                            .to_string();
-                        match std::fs::remove_dir_all(img_folder_path.clone()) {
-                            Ok(_) => log::trace!("Removed {}", img_folder_path),
-                            Err(e) => log::warn!("file {} {}", img_folder_path, e),
-                        }
+                if let Some(img) = descriptor.image {
+                    let img_uri = img.uri;
+                    let splitter_uri = img_uri.split('/').collect::<Vec<&str>>();
+                    let f_name = splitter_uri.last().ok_or(FError::NotFound)?;
+                    let f_path = self
+                        .get_run_path()
+                        .join(format!("{}", instance_uuid))
+                        .join(f_name.to_string())
+                        .to_str()
+                        .ok_or(FError::EncodingError)?
+                        .to_string();
+                    match std::fs::remove_file(f_path.clone()) {
+                        Ok(_) => log::trace!("Removed {}", f_path),
+                        Err(e) => log::warn!("file {} {}", f_path, e),
                     }
-                    None => (),
-                };
+
+                    let img_name = match f_name.strip_suffix(".tar.gz") {
+                        Some(x) => x,
+                        None => {
+                            return Err(FError::HypervisorError(
+                                "Image is not packaged as .tar.gz".to_string(),
+                            ));
+                        }
+                    };
+
+                    let img_folder_path = self
+                        .get_run_path()
+                        .join(format!("{}", instance_uuid))
+                        .join(img_name.to_string())
+                        .to_str()
+                        .ok_or(FError::EncodingError)?
+                        .to_string();
+                    match std::fs::remove_dir_all(img_folder_path.clone()) {
+                        Ok(_) => log::trace!("Removed {}", img_folder_path),
+                        Err(e) => log::warn!("file {} {}", img_folder_path, e),
+                    }
+                }
 
                 //removing instance directory
                 self.os
@@ -599,9 +593,8 @@ impl HypervisorPlugin for NativeHypervisor {
 
                 instance.hypervisor_specific = Some(serialize_native_specific_info(&hv_specific)?);
 
-                match instance.status {
-                    FDUState::ERROR(_) => instance.restarts += 1,
-                    _ => (),
+                if let FDUState::ERROR(_) = instance.status {
+                    instance.restarts += 1
                 }
 
                 instance.status = FDUState::RUNNING;
@@ -753,8 +746,8 @@ impl NativeHypervisor {
 
                 for i in node_fdus_instances {
                     log::trace!("Node FDU: {}", i.uuid);
-                    if let Some(desc) = self.connector.global.get_fdu(i.fdu_uuid).await.ok() {
-                        if desc.hypervisor == String::from("bare") {
+                    if let Ok(desc) = self.connector.global.get_fdu(i.fdu_uuid).await {
+                        if desc.hypervisor == *"bare" {
                             local_instances.push(i)
                         }
                     }
@@ -813,7 +806,7 @@ impl NativeHypervisor {
                                         _ => {
                                             log::error!("FDU Instance {} is not running", i.uuid);
                                             // Here we try to recover.
-                                            if let Ok(_) = mon_self.try_restart(i.clone()).await {
+                                            if mon_self.try_restart(i.clone()).await.is_ok() {
                                                 log::trace!("FDU re-started correctly");
                                             } else {
                                                 log::trace!("Unable to restart FDU {}", i.uuid);
@@ -826,7 +819,7 @@ impl NativeHypervisor {
                                         hv_specific.pid
                                     );
                                     // Here we try to recover.
-                                    if let Ok(_) = mon_self.try_restart(i.clone()).await {
+                                    if mon_self.try_restart(i.clone()).await.is_ok() {
                                         log::trace!("FDU re-started correctly");
                                     } else {
                                         log::trace!("Unable to restart FDU {}", i.uuid);
@@ -871,7 +864,7 @@ impl NativeHypervisor {
 
     async fn try_reclean(&mut self, mut instance: FDURecord) -> FResult<Uuid> {
         let node_uuid = self.agent.as_ref().unwrap().get_node_uuid().await??;
-        instance.status = FDUState::ERROR(format!("FDU not clean!"));
+        instance.status = FDUState::ERROR("FDU not clean!".to_string());
         self.connector
             .global
             .add_node_instance(node_uuid, &instance)
@@ -883,7 +876,7 @@ impl NativeHypervisor {
 
     async fn try_reconfigure(&mut self, mut instance: FDURecord) -> FResult<Uuid> {
         let node_uuid = self.agent.as_ref().unwrap().get_node_uuid().await??;
-        instance.status = FDUState::ERROR(format!("FDU not configured!"));
+        instance.status = FDUState::ERROR("FDU not configured!".to_string());
         self.connector
             .global
             .add_node_instance(node_uuid, &instance)
@@ -895,7 +888,7 @@ impl NativeHypervisor {
 
     async fn try_restart(&mut self, mut instance: FDURecord) -> FResult<Uuid> {
         let node_uuid = self.agent.as_ref().unwrap().get_node_uuid().await??;
-        instance.status = FDUState::ERROR(format!("FDU not running!"));
+        instance.status = FDUState::ERROR("FDU not running!".to_string());
         self.connector
             .global
             .add_node_instance(node_uuid, &instance)

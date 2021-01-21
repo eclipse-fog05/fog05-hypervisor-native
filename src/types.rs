@@ -85,10 +85,10 @@ pub fn serialize_native_specific_info(data: &NativeHVSpecificInfo) -> FResult<Ve
 }
 
 pub fn deserialize_native_specific_info(raw_data: &[u8]) -> FResult<NativeHVSpecificInfo> {
-    Ok(serde_json::from_str::<NativeHVSpecificInfo>(
+    serde_json::from_str::<NativeHVSpecificInfo>(
         std::str::from_utf8(raw_data).map_err(|e| FError::HypervisorError(format!("{}", e)))?,
     )
-    .map_err(|e| FError::HypervisorError(format!("{}", e)))?)
+    .map_err(|e| FError::HypervisorError(format!("{}", e)))
 }
 
 pub fn serialize_native_specific_descriptor(data: &NativeHVSpecificDescriptor) -> FResult<Vec<u8>> {
@@ -100,10 +100,10 @@ pub fn serialize_native_specific_descriptor(data: &NativeHVSpecificDescriptor) -
 pub fn deserialize_native_specific_descriptor(
     raw_data: &[u8],
 ) -> FResult<NativeHVSpecificDescriptor> {
-    Ok(serde_json::from_str::<NativeHVSpecificDescriptor>(
+    serde_json::from_str::<NativeHVSpecificDescriptor>(
         std::str::from_utf8(raw_data).map_err(|e| FError::HypervisorError(format!("{}", e)))?,
     )
-    .map_err(|e| FError::HypervisorError(format!("{}", e)))?)
+    .map_err(|e| FError::HypervisorError(format!("{}", e)))
 }
 
 pub fn serialize_plugin_config(data: &NativeHVConfig) -> FResult<Vec<u8>> {
@@ -113,8 +113,8 @@ pub fn serialize_plugin_config(data: &NativeHVConfig) -> FResult<Vec<u8>> {
 }
 
 pub fn deserialize_plugin_config(raw_data: &[u8]) -> FResult<NativeHVConfig> {
-    Ok(serde_yaml::from_str::<NativeHVConfig>(
+    serde_yaml::from_str::<NativeHVConfig>(
         std::str::from_utf8(raw_data).map_err(|e| FError::HypervisorError(format!("{}", e)))?,
     )
-    .map_err(|e| FError::HypervisorError(format!("{}", e)))?)
+    .map_err(|e| FError::HypervisorError(format!("{}", e)))
 }

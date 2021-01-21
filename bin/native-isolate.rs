@@ -194,7 +194,7 @@ fn main() {
 
                     let sig_handle = signals.handle();
 
-                    let ch = child.clone();
+                    let ch = child;
                     let wait_future = async_std::task::spawn_blocking(move || {
                         async_std::task::block_on(async {
                             let mut signals = signals.fuse();
