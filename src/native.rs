@@ -70,6 +70,7 @@ impl HypervisorPlugin for NativeHypervisor {
             status: FDUState::DEFINED,
             error: None,
             hypervisor_specific: None,
+            restarts: 0,
         };
         log::trace!("Add instance to local state");
         guard.fdus.insert(instance_uuid, instance.clone());
@@ -598,7 +599,13 @@ impl HypervisorPlugin for NativeHypervisor {
 
                 instance.hypervisor_specific = Some(serialize_native_specific_info(&hv_specific)?);
 
+                match instance.status {
+                    FDUState::ERROR(_) => instance.restarts += 1,
+                    _ => (),
+                }
+
                 instance.status = FDUState::RUNNING;
+
                 self.connector
                     .global
                     .add_node_instance(node_uuid, &instance)
@@ -805,23 +812,8 @@ impl NativeHypervisor {
                                         }
                                         _ => {
                                             log::error!("FDU Instance {} is not running", i.uuid);
-                                            // Here we should recover.
-                                            // This needs to become a function
-                                            // First we set the status to error
-                                            i.status = FDUState::ERROR(format!("FDU not running!"));
-
-                                            i.hypervisor_specific = Some(
-                                                serialize_native_specific_info(&hv_specific)
-                                                    .unwrap(),
-                                            );
-                                            mon_self
-                                                .connector
-                                                .global
-                                                .add_node_instance(node_uuid, &i)
-                                                .await;
-
-                                            // then we try to start the fdu.
-                                            if let Ok(_) = mon_self.start_fdu(i.uuid).await {
+                                            // Here we try to recover.
+                                            if let Ok(_) = mon_self.try_restart(i.clone()).await {
                                                 log::trace!("FDU re-started correctly");
                                             } else {
                                                 log::trace!("Unable to restart FDU {}", i.uuid);
@@ -833,22 +825,8 @@ impl NativeHypervisor {
                                         "Unable to find the process {} for the instance",
                                         hv_specific.pid
                                     );
-                                    // Here we should recover.
-
-                                    // This needs to become a function
-                                    // First we set the status to error
-                                    i.status = FDUState::ERROR(format!("FDU not running!"));
-
-                                    i.hypervisor_specific =
-                                        Some(serialize_native_specific_info(&hv_specific).unwrap());
-                                    mon_self
-                                        .connector
-                                        .global
-                                        .add_node_instance(node_uuid, &i)
-                                        .await;
-
-                                    // then we try to start the fdu.
-                                    if let Ok(_) = mon_self.start_fdu(i.uuid).await {
+                                    // Here we try to recover.
+                                    if let Ok(_) = mon_self.try_restart(i.clone()).await {
                                         log::trace!("FDU re-started correctly");
                                     } else {
                                         log::trace!("Unable to restart FDU {}", i.uuid);
@@ -889,6 +867,42 @@ impl NativeHypervisor {
 
         log::info!("DummyHypervisor main loop exiting");
         Ok(())
+    }
+
+    async fn try_reclean(&mut self, mut instance: FDURecord) -> FResult<Uuid> {
+        let node_uuid = self.agent.as_ref().unwrap().get_node_uuid().await??;
+        instance.status = FDUState::ERROR(format!("FDU not clean!"));
+        self.connector
+            .global
+            .add_node_instance(node_uuid, &instance)
+            .await;
+
+        // then we try to start the fdu.
+        Ok(self.clean_fdu(instance.uuid).await?)
+    }
+
+    async fn try_reconfigure(&mut self, mut instance: FDURecord) -> FResult<Uuid> {
+        let node_uuid = self.agent.as_ref().unwrap().get_node_uuid().await??;
+        instance.status = FDUState::ERROR(format!("FDU not configured!"));
+        self.connector
+            .global
+            .add_node_instance(node_uuid, &instance)
+            .await;
+
+        // then we try to start the fdu.
+        Ok(self.configure_fdu(instance.uuid).await?)
+    }
+
+    async fn try_restart(&mut self, mut instance: FDURecord) -> FResult<Uuid> {
+        let node_uuid = self.agent.as_ref().unwrap().get_node_uuid().await??;
+        instance.status = FDUState::ERROR(format!("FDU not running!"));
+        self.connector
+            .global
+            .add_node_instance(node_uuid, &instance)
+            .await;
+
+        // then we try to start the fdu.
+        Ok(self.start_fdu(instance.uuid).await?)
     }
 
     pub async fn start(
