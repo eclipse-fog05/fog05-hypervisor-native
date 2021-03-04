@@ -405,12 +405,13 @@ impl HypervisorPlugin for NativeHypervisor {
                     log::trace!("Deleted virtual interface {:?}", iface);
                 }
 
-                self.net
-                    .as_ref()
-                    .unwrap()
-                    .delete_network_namespace(hv_specific.netns.unwrap())
-                    .await??;
-
+                if cfg!(feature = "isolation") {
+                    self.net
+                        .as_ref()
+                        .unwrap()
+                        .delete_network_namespace(hv_specific.netns.unwrap())
+                        .await??;
+                }
                 // for cp in instance.connection_points {
                 //     self.net
                 //         .as_ref()
