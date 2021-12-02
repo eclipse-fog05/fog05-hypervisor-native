@@ -42,7 +42,7 @@ pub struct NativeHVConfig {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct NativeHVSpecificInfo {
     //pub netns: Uuid,
-    pub pid: u32,
+    pub pid: i32,
     pub env: HashMap<String, String>,
     pub instance_path: String,
     pub instance_files: Vec<String>,

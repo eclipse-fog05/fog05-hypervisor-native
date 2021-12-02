@@ -18,7 +18,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::process::{Command, Stdio};
 use std::time::Duration;
-
+use std::convert::TryInto;
 use async_std::prelude::*;
 use async_std::sync::{Arc, Mutex};
 use async_std::task;
@@ -26,7 +26,7 @@ use async_std::task;
 use nix::sys::signal::{kill, Signal};
 use nix::unistd::Pid;
 
-use psutil::process::{processes, Process, ProcessError, Status as ProcessStatus};
+use sysinfo::{ProcessExt, ProcessStatus, System, SystemExt, Process};
 
 use znrpc_macros::znserver;
 use zrpc::ZNServe;
@@ -566,7 +566,7 @@ impl HypervisorPlugin for NativeHypervisor {
                 let child = cmd.spawn()?;
                 log::debug!("Child PID {}", child.id());
 
-                hv_specific.pid = child.id();
+                hv_specific.pid = child.id().try_into().unwrap();
 
                 instance.hypervisor_specific = Some(serialize_native_specific_info(&hv_specific)?);
 
@@ -712,35 +712,22 @@ impl NativeHypervisor {
                     }
                 }
 
-                fn find_process(pid: u32) -> FResult<Process> {
-                    let mut processes = processes().unwrap();
-                    let find = processes
-                        .into_iter()
-                        .find(|p| p.as_ref().unwrap().pid() == pid);
-                    if let Some(p) = find {
-                        match p {
-                            Ok(p) => {
-                                return Ok(p);
-                            }
-                            Err(ProcessError::NoSuchProcess { pid }) => {
-                                log::error!("Process {} not found", pid);
-                                return Err(FError::NotFound);
-                            }
-                            Err(ProcessError::ZombieProcess { pid }) => {
-                                log::error!("Process {} is zombie!", pid);
-                                return Err(FError::NotFound);
-                            }
-                            Err(ProcessError::AccessDenied { pid }) => {
-                                log::error!("Access denined for process {}", pid);
-                                return Err(FError::NotFound);
-                            }
-                            Err(ProcessError::PsutilError { pid, source }) => {
-                                log::error!("Psutil got error {:?} for PID {}", source, pid);
-                                return Err(FError::NotFound);
+                fn find_process(pid: i32) -> FResult<Process> {
+                    let s = System::new_all();
+
+                    match s.process(pid) {
+                        Some(p) => {
+                            match p.status() {
+                                ProcessStatus::Run | ProcessStatus::Idle | ProcessStatus::Sleep => {
+                                    Ok(p.clone())
+                                }
+                                _ => {
+                                    Ok(p.clone())
+                                }
                             }
                         }
+                        None => Err(FError::NotFound),
                     }
-                    Err(FError::NotFound)
                 }
 
                 log::trace!("Local Instances: {:?}", local_instances);
@@ -754,10 +741,10 @@ impl NativeHypervisor {
                             FDUState::RUNNING => {
                                 log::trace!("State of FDU is expected running");
                                 if let Ok(process) = find_process(hv_specific.pid) {
-                                    match process.status().unwrap() {
-                                        ProcessStatus::Running
+                                    match process.status() {
+                                        ProcessStatus::Run
                                         | ProcessStatus::Idle
-                                        | ProcessStatus::Sleeping => {
+                                        | ProcessStatus::Sleep => {
                                             log::trace!(
                                                 "Process is running, status is coherent..."
                                             );
