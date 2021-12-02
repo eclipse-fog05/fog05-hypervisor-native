@@ -14,24 +14,24 @@
 #![allow(unused_variables)]
 #![allow(unused_mut)]
 
-use std::collections::HashMap;
-use std::fs::File;
-use std::process::{Command, Stdio};
-use std::time::Duration;
-use std::convert::TryInto;
 use async_std::prelude::*;
 use async_std::sync::{Arc, Mutex};
 use async_std::task;
+use std::collections::HashMap;
+use std::convert::TryInto;
+use std::fs::File;
+use std::process::{Command, Stdio};
+use std::time::Duration;
 
 use nix::sys::signal::{kill, Signal};
 use nix::unistd::Pid;
 
-use sysinfo::{ProcessExt, ProcessStatus, System, SystemExt, Process};
+use sysinfo::{Process, ProcessExt, ProcessStatus, System, SystemExt};
 
 use znrpc_macros::znserver;
 use zrpc::ZNServe;
 
-use fog05_sdk::agent::{plugin::AgentPluginInterfaceClient, os::OSClient};
+use fog05_sdk::agent::{os::OSClient, plugin::AgentPluginInterfaceClient};
 use fog05_sdk::fresult::{FError, FResult};
 use fog05_sdk::im::fdu::*;
 use fog05_sdk::im::fdu::{FDUDescriptor, FDURecord, FDUState};
@@ -716,16 +716,12 @@ impl NativeHypervisor {
                     let s = System::new_all();
 
                     match s.process(pid) {
-                        Some(p) => {
-                            match p.status() {
-                                ProcessStatus::Run | ProcessStatus::Idle | ProcessStatus::Sleep => {
-                                    Ok(p.clone())
-                                }
-                                _ => {
-                                    Ok(p.clone())
-                                }
+                        Some(p) => match p.status() {
+                            ProcessStatus::Run | ProcessStatus::Idle | ProcessStatus::Sleep => {
+                                Ok(p.clone())
                             }
-                        }
+                            _ => Ok(p.clone()),
+                        },
                         None => Err(FError::NotFound),
                     }
                 }

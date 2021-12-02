@@ -13,6 +13,5 @@
 #![allow(unused_variables)]
 #![allow(clippy::upper_case_acronyms)]
 
-
 pub mod native;
 pub mod types;

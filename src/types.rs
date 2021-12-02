@@ -22,7 +22,7 @@ use std::process::Child;
 
 use async_std::sync::{Arc, Mutex, RwLock};
 
-use fog05_sdk::agent::{plugin::AgentPluginInterfaceClient, os::OSClient};
+use fog05_sdk::agent::{os::OSClient, plugin::AgentPluginInterfaceClient};
 use fog05_sdk::fresult::{FError, FResult};
 use fog05_sdk::im::fdu::*;
 use fog05_sdk::plugins::networking::NetworkingPluginClient;
