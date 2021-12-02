@@ -45,7 +45,7 @@ sysinfo = "0.20"
 
 [features]
 isolation = ["caps"]
-default = []
+default = ["isolation"]
 
 [[bin]]
 name = "native-hypervisor"
